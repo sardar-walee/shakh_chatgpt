@@ -1,8 +1,17 @@
 -- SHAKH SUPER initial schema
 create extension if not exists "pgcrypto";
-create type public.app_role as enum ('super_admin','admin','captain','restaurant','supermarket','fashion','beauty','car_dealer','customer');
-create type public.post_status as enum ('active','blocked','deleted');
-create type public.order_status as enum ('pending','accepted','preparing','out_for_delivery','delivered','cancelled');
+do $$ begin
+	create type public.app_role as enum ('super_admin','admin','captain','restaurant','supermarket','fashion','beauty','car_dealer','customer');
+exception when duplicate_object then null;
+end $$;
+do $$ begin
+	create type public.post_status as enum ('active','blocked','deleted');
+exception when duplicate_object then null;
+end $$;
+do $$ begin
+	create type public.order_status as enum ('pending','accepted','preparing','out_for_delivery','delivered','cancelled');
+exception when duplicate_object then null;
+end $$;
 
 create table if not exists public.profiles(
  id uuid primary key references auth.users(id) on delete cascade,
@@ -59,12 +68,4 @@ alter table public.posts enable row level security;
 alter table public.orders enable row level security;
 alter table public.order_items enable row level security;
 alter table public.wallet_transactions enable row level security;
-create policy "public active posts" on public.posts for select using(status='active');
-create policy "users create own posts" on public.posts for insert with check(auth.uid()=owner_id);
-create policy "owners update own posts" on public.posts for update using(auth.uid()=owner_id);
-create policy "owners delete own posts" on public.posts for delete using(auth.uid()=owner_id);
-create policy "users see own profile" on public.profiles for select using(auth.uid()=id);
-create policy "users update own profile" on public.profiles for update using(auth.uid()=id);
-create policy "customers create orders" on public.orders for insert with check(auth.uid()=customer_id);
-create policy "users see related orders" on public.orders for select using(auth.uid()=customer_id or auth.uid()=captain_id);
--- For production, add SECURITY DEFINER functions for super_admin/admin permissions.
+-- Policies are installed by v3_migration.sql after it detects legacy columns.

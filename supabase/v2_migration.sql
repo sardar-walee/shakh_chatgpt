@@ -46,13 +46,4 @@ alter table public.platform_settings enable row level security;
 alter table public.role_permissions enable row level security;
 alter table public.audit_logs enable row level security;
 
-create policy "public can read platform settings" on public.platform_settings
-for select using (true);
-
-create policy "authenticated can read own role permissions" on public.role_permissions
-for select using (
-  exists(select 1 from public.profiles p where p.id=auth.uid() and p.role=role)
-);
-
-create policy "actors can create audit logs" on public.audit_logs
-for insert with check (auth.uid()=actor_id);
+-- Policies are installed by v3_migration.sql after it detects legacy columns.
