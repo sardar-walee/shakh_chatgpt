@@ -33,9 +33,10 @@ function App(){
  const [products,setProducts]=useState<Product[]>(seed);
  const [userId,setUserId]=useState<string|null>(null);
  const [loading,setLoading]=useState(isSupabaseConfigured);
- const [authMode,setAuthMode]=useState<"login"|"signup">("login");
+ const [authMode,setAuthMode]=useState<"login"|"signup"|"forgot"|"reset">("login");
  const [authEmail,setAuthEmail]=useState("");
  const [authPassword,setAuthPassword]=useState("");
+ const [authConfirmPassword,setAuthConfirmPassword]=useState("");
  const [authName,setAuthName]=useState("");
  const [authBusy,setAuthBusy]=useState(false);
  const [authMessage,setAuthMessage]=useState("");
@@ -46,6 +47,13 @@ function App(){
  const [form,setForm]=useState({name:"",price:"",category:"restaurant",emoji:"📦"});
  const t=(ku:string,ar:string,en:string)=>lang==="ku"?ku:lang==="ar"?ar:en;
  useEffect(()=>{void loadData()},[]);
+ useEffect(()=>{
+  if(!supabase)return;
+  const {data}=supabase.auth.onAuthStateChange(event=>{
+   if(event==="PASSWORD_RECOVERY"){setAuthMode("reset");setTab("auth");setAuthMessage("")}
+  });
+  return()=>{data.subscription.unsubscribe()};
+ },[]);
  useEffect(()=>{
   const install=(event:Event)=>{event.preventDefault();setInstallPrompt(event)};
   window.addEventListener("beforeinstallprompt",install);
@@ -72,6 +80,8 @@ function App(){
  }
  async function authenticate(){
   if(!supabase){setAuthMessage(t("پەیوەندی Supabase ڕێک نەخراوە","لم يتم إعداد اتصال Supabase","Supabase is not configured"));return;}
+  if(authMode==="forgot"){await sendReset();return;}
+  if(authMode==="reset"){await updatePassword();return;}
   if(!authEmail||!authPassword)return;
     setAuthBusy(true);setAuthMessage("");
     const result=authMode==="signup"
@@ -82,6 +92,24 @@ function App(){
     else {setAuthMessage("");await loadData();}
     setAuthBusy(false);
  }
+   async function sendReset(){
+    if(!supabase){setAuthMessage(t("پەیوەندی Supabase ڕێک نەخراوە","لم يتم إعداد اتصال Supabase","Supabase is not configured"));return;}
+    if(!authEmail){setAuthMessage(t("تکایە ئیمەیڵەکەت بنووسە","أدخل بريدك الإلكتروني","Enter your email address"));return;}
+    setAuthBusy(true);setAuthMessage("");
+    const {error}=await supabase.auth.resetPasswordForEmail(authEmail,{redirectTo:window.location.origin});
+    setAuthMessage(error?.message||t("لینکی گۆڕینی وشەی نهێنی بۆ ئیمەیڵەکەت نێردرا. inbox ـەکەت بپشکنە.","تم إرسال رابط إعادة تعيين كلمة المرور إلى بريدك.","A password reset link was sent to your email."));
+    setAuthBusy(false);
+   }
+   async function updatePassword(){
+    if(!supabase)return;
+    if(authPassword.length<6){setAuthMessage(t("وشەی نهێنی دەبێت لانیکەم ٦ پیت بێت","يجب أن تتكون كلمة المرور من 6 أحرف على الأقل","Password must be at least 6 characters"));return;}
+    if(authPassword!==authConfirmPassword){setAuthMessage(t("وشە نهێنییەکان یەکسان نین","كلمتا المرور غير متطابقتين","Passwords do not match"));return;}
+    setAuthBusy(true);setAuthMessage("");
+    const {error}=await supabase.auth.updateUser({password:authPassword});
+    if(error)setAuthMessage(error.message);
+    else {setAuthMode("login");setAuthPassword("");setAuthConfirmPassword("");setAuthMessage(t("وشەی نهێنی نوێ کرایەوە. ئێستا دەتوانیت بچیتە ژوورەوە.","تم تحديث كلمة المرور. يمكنك تسجيل الدخول الآن.","Password updated. You can sign in now."));}
+    setAuthBusy(false);
+   }
  async function signOut(){if(supabase)await supabase.auth.signOut();setUserId(null);setRole("customer");}
  async function installApp(){if(!installPrompt)return;await installPrompt.prompt();setInstallPrompt(null);}
  function refreshApp(){navigator.serviceWorker?.controller?.postMessage({type:"SKIP_WAITING"});window.location.reload();}
@@ -137,7 +165,7 @@ function App(){
   <footer>{t("© شاخ سوپەر — پلاتفۆرمی فرۆشتن و گەیاندن","© شاخ سوبر — منصة التسوق والتوصيل","© Shakh Super — Marketplace & delivery platform")} <span>کوردی · عربي · English</span></footer>
  </div>
 }
-function Auth({mode,setMode,email,setEmail,password,setPassword,name,setName,busy,message,submit,t}:{mode:"login"|"signup";setMode:React.Dispatch<React.SetStateAction<"login"|"signup">>;email:string;setEmail:React.Dispatch<React.SetStateAction<string>>;password:string;setPassword:React.Dispatch<React.SetStateAction<string>>;name:string;setName:React.Dispatch<React.SetStateAction<string>>;busy:boolean;message:string;submit:()=>void;t:(a:string,b:string,c:string)=>string}){return <div className="panel"><h2>{mode==="login"?t("چوونەژوورەوە","تسجيل الدخول","Sign in"):t("دروستکردنی هەژمار","إنشاء حساب","Create account")}</h2><div className="form">{mode==="signup"&&<input placeholder={t("ناوی تەواو","الاسم الكامل","Full name")} value={name} onChange={e=>setName(e.target.value)}/>}<input type="email" autoComplete="email" placeholder={t("ئیمەیڵ","البريد الإلكتروني","Email")} value={email} onChange={e=>setEmail(e.target.value)}/><input type="password" autoComplete={mode==="login"?"current-password":"new-password"} placeholder={t("وشەی نهێنی","كلمة المرور","Password")} value={password} onChange={e=>setPassword(e.target.value)}/>{message&&<p className="notice">{message}</p>}<button className="primary" disabled={busy||!email||!password} onClick={submit}>{busy?t("چاوەڕوان بە...","انتظر...","Please wait..."):mode==="login"?t("چوونەژوورەوە","تسجيل الدخول","Sign in"):t("دروستکردنی هەژمار","إنشاء حساب","Create account")}</button><button type="button" className="linkbtn" onClick={()=>setMode(mode==="login"?"signup":"login")}>{mode==="login"?t("هەژمارت نییە؟ دروستی بکە","ليس لديك حساب؟ أنشئ حساباً","Create an account"):t("پێشتر هەژمارت هەیە؟ بچۆ ژوورەوە","لديك حساب؟ سجل الدخول","Already have an account? Sign in")}</button></div></div>}
+function Auth({mode,setMode,email,setEmail,password,setPassword,name,setName,busy,message,submit,t}:{mode:"login"|"signup"|"forgot"|"reset";setMode:React.Dispatch<React.SetStateAction<"login"|"signup"|"forgot"|"reset">>;email:string;setEmail:React.Dispatch<React.SetStateAction<string>>;password:string;setPassword:React.Dispatch<React.SetStateAction<string>>;name:string;setName:React.Dispatch<React.SetStateAction<string>>;busy:boolean;message:string;submit:()=>void;t:(a:string,b:string,c:string)=>string}){const [confirmPassword,setConfirmPassword]=useState("");const [localMessage,setLocalMessage]=useState("");const recovery=mode==="forgot"||mode==="reset";const title=mode==="login"?t("بەخێربێیتەوە","مرحباً بعودتك","Welcome back"):mode==="signup"?t("هەژمارێکی نوێ دروست بکە","أنشئ حساباً جديداً","Create your account"):mode==="forgot"?t("وشەی نهێنیت لەبیرچووە؟","نسيت كلمة المرور؟","Forgot your password?"):t("وشەی نهێنی نوێ دابنێ","أنشئ كلمة مرور جديدة","Create a new password");const submitForm=()=>{if(mode==="reset"&&password!==confirmPassword){setLocalMessage(t("وشە نهێنییەکان یەکسان نین","كلمتا المرور غير متطابقتين","Passwords do not match"));return;}setLocalMessage("");submit()};return <div className="auth-panel"><div className="auth-intro"><div className="auth-orbit">S</div><span>SHAKH SUPER</span><h2>{title}</h2><p>{recovery?t("ئێمە یارمەتیت دەدەین بۆ گەڕاندنەوەی دەستگەیشتن بە هەژمارەکەت.","سنساعدك على استعادة الوصول إلى حسابك.","We will help you get back into your account."):t("بازاڕەکەت بە ئارامی بەڕێوە ببە.","أدر سوقك بسهولة.","Your marketplace, made simple.")}</p></div><div className="auth-form"><div className="auth-kicker">{mode==="signup"?t("بەشداربوون","انضم إلينا","Join us"):mode==="login"?t("چوونەژوورەوەی پارێزراو","دخول آمن","Secure sign in"):t("پاراستنی هەژمار","حماية الحساب","Account recovery")}</div>{mode==="signup"&&<input placeholder={t("ناوی تەواو","الاسم الكامل","Full name")} value={name} onChange={e=>setName(e.target.value)}/>}<input type="email" autoComplete="email" placeholder={t("ئیمەیڵ","البريد الإلكتروني","Email")} value={email} onChange={e=>setEmail(e.target.value)}/>{mode!=="forgot"&&<input type="password" autoComplete={mode==="login"?"current-password":"new-password"} placeholder={t("وشەی نهێنی","كلمة المرور","Password")} value={password} onChange={e=>setPassword(e.target.value)}/>} {mode==="reset"&&<input type="password" autoComplete="new-password" placeholder={t("دووبارە وشەی نهێنی بنووسە","أعد كتابة كلمة المرور","Confirm password")} value={confirmPassword} onChange={e=>setConfirmPassword(e.target.value)}/>} {(message||localMessage)&&<p className="auth-message">{localMessage||message}</p>}<button className="primary auth-submit" disabled={busy||!email||(mode!=="forgot"&&!password)} onClick={submitForm}>{busy?t("چاوەڕوان بە...","انتظر...","Please wait..."):mode==="login"?t("چوونەژوورەوە","تسجيل الدخول","Sign in"):mode==="signup"?t("دروستکردنی هەژمار","إنشاء حساب","Create account"):mode==="forgot"?t("ناردنی لینکی گۆڕین","إرسال رابط الاستعادة","Send reset link"):t("نوێکردنەوەی وشەی نهێنی","تحديث كلمة المرور","Update password")}</button><button type="button" className="linkbtn auth-back" onClick={()=>setMode(mode==="login"?"signup":"login")}>{mode==="login"?t("هەژمارت نییە؟ دروستی بکە","ليس لديك حساب؟ أنشئ حساباً","Create an account"):mode==="signup"?t("پێشتر هەژمارت هەیە؟ بچۆ ژوورەوە","لديك حساب؟ سجل الدخول","Already have an account? Sign in"):t("گەڕانەوە بۆ چوونەژوورەوە","العودة لتسجيل الدخول","Back to sign in")}</button>{mode==="login"&&<button type="button" className="forgot-link" onClick={()=>{setMode("forgot");setLocalMessage("")}}>{t("وشەی نهێنیت لەبیرچووە؟","نسيت كلمة المرور؟","Forgot password?")}</button>}</div></div>}
 function Cart({cart,setCart,money,t,checkout}:{cart:Product[];setCart:React.Dispatch<React.SetStateAction<Product[]>>;money:(n:number)=>string;t:(a:string,b:string,c:string)=>string;checkout:()=>void}){const total=cart.reduce((s,p)=>s+p.price,0);return <div className="panel"><h2>{t("سەبەتەی کڕین","سلة التسوق","Shopping cart")}</h2>{cart.length===0?<p>{t("سەبەتەکە بەتاڵە","السلة فارغة","Your cart is empty")}</p>:<>{cart.map((p,i)=><div className="cartrow" key={`${p.id}-${i}`}><span>{p.emoji} {p.name}</span><b>{money(p.price)}</b><button onClick={()=>setCart(c=>c.filter((_,j)=>j!==i))}><Trash2 size={16}/></button></div>)}<div className="total">{t("کۆی گشتی","المجموع","Total")} <b>{money(total)}</b></div><button className="primary" onClick={checkout}>{t("داواکاری بە کاش لە کاتی گەیاندن","الدفع نقداً عند الاستلام","Cash on delivery")} ✓</button></>}</div>}
 function Post({form,setForm,add,t}:{form:any;setForm:any;add:()=>void;t:(a:string,b:string,c:string)=>string}){return <div className="panel"><h2>{t("پۆستی نوێ زیاد بکە","إضافة منشور جديد","Create new post")}</h2><div className="form"><input placeholder={t("ناوی کالا یان ئۆتۆمبێل","اسم المنتج أو السيارة","Product or car name")} value={form.name} onChange={e=>setForm({...form,name:e.target.value})}/><input type="number" placeholder={t("نرخ بە دینار","السعر بالدينار","Price in IQD")} value={form.price} onChange={e=>setForm({...form,price:e.target.value})}/><select value={form.category} onChange={e=>setForm({...form,category:e.target.value})}>{roles.filter(r=>r.id!=="captain").map(r=><option value={r.id} key={r.id}>{t(r.ku,r.ar,r.en)}</option>)}</select><input placeholder="Emoji" value={form.emoji} onChange={e=>setForm({...form,emoji:e.target.value})}/><button className="primary" onClick={add}><Plus/> {t("پۆستکردن","نشر","Publish")}</button></div></div>}
 function Dashboard({products,role,setRole,t}:{products:Product[];role:Role;setRole:any;t:(a:string,b:string,c:string)=>string}){return <div className="panel"><h2>{t("داشبۆردی بەڕێوەبردن","لوحة التحكم","Management dashboard")}</h2><div className="stats"><div><Package/><b>{products.length}</b><span>{t("کۆی پۆستەکان","إجمالي المنشورات","Total posts")}</span></div><div><Wallet/><b>1,250,000</b><span>{t("پارەی نموونەیی","رصيد تجريبي","Demo balance")}</span></div><div><Bike/><b>24</b><span>{t("گەیاندنی چالاک","طلبات التوصيل","Deliveries")}</span></div></div><label>{t("ڕۆڵی تاقیکردنەوە","دور التجربة","Demo role")}</label><select value={role} onChange={e=>setRole(e.target.value)}>{["super_admin","admin","captain","restaurant","supermarket","fashion","beauty","car_dealer","customer"].map(r=><option key={r}>{r}</option>)}</select><p>{t("ئەم داشبۆردە وەشانی سەرەتاییە؛ دەسەڵاتەکان لە Supabase بە RLS پارێزراون.","هذه لوحة أولية؛ الصلاحيات تحمى عبر Supabase RLS.","This is a starter dashboard; permissions are protected by Supabase RLS.")}</p></div>}
