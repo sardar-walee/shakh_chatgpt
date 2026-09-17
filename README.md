@@ -27,14 +27,16 @@ cp .env.example .env
 npm run dev
 ```
 
-## Supabase setup
+## Supabase Auth and recovery setup
 1. Open your Supabase project.
-2. Open SQL Editor.
-3. Run `supabase/schema.sql`, then run `supabase/v3_enum_fix.sql` by itself and let it commit.
-4. Run `supabase/v2_migration.sql`, then `supabase/v3_migration.sql`. v3 is also safe when v2 was skipped.
-5. Run `supabase/legacy_compatibility.sql` to preserve the previous marketplace tables (`cars`, `restaurants`, `supermarkets`, wallets, campaigns, notifications, and related tables).
-6. Run `supabase/platform_services.sql` to configure Storage and Reayour production domain.
-8. Copy the public keys into `.env`:
+2. Go to Authentication → Providers and enable Email and Google.
+3. For Google, add your app domain and redirect URL to the allowed list. For local development use `http://localhost:5173` and for production use `https://YOUR_DOMAIN`.
+4. In Authentication → URL Configuration, set the site URL to your deployed app origin (or `http://localhost:5173` for local dev).
+5. Add the redirect URLs for signup, login, and password recovery, for example:
+   - `http://localhost:5173/**`
+   - `https://YOUR_DOMAIN/**`
+6. In SQL Editor, run the database migrations in order: `supabase/schema.sql`, `supabase/v3_enum_fix.sql`, `supabase/v2_migration.sql`, `supabase/v3_migration.sql`, `supabase/post_category_attributes.sql`, `supabase/legacy_compatibility.sql`, `supabase/production_repair.sql`, `supabase/platform_services.sql`.
+7. Copy the public keys into `.env`:
 ```env
 VITE_SUPABASE_URL=https://pmsrrsvvhjclvtdpkbmh.supabase.co
 VITE_SUPABASE_ANON_KEY=YOUR_PUBLIC_ANON_KEY
@@ -42,7 +44,7 @@ VITE_SUPABASE_STORAGE_BUCKET=product-images
 VITE_MAP_API_KEY=YOUR_PUBLIC_MAP_API_KEY
 VITE_MAP_STYLE_URL=https://demotiles.maplibre.org/style.json
 ```
-9. Do not put a `service_role` key in frontend code.
+8. Do not put a `service_role` key in frontend code.
 
 The web app is installable as a PWA. On supported browsers it shows an install prompt, listens for live post/order changes through Realtime, and displays a short update message when a new deployment is available.
 
@@ -50,7 +52,7 @@ The web app is installable as a PWA. On supported browsers it shows an install p
 ```bash
 git init
 git add .
-git commit -m "SHAKH SUPER v2.1.0"
+git commit -m "SHAKH  SUPERv2.4.0"
 git branch -M main
 git remote add origin YOUR_GITHUB_REPOSITORY_URL
 git push -u origin main

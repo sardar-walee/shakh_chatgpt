@@ -22,11 +22,13 @@ create table if not exists public.profiles(
 );
 create table if not exists public.posts(
  id uuid primary key default gen_random_uuid(),
- owner_id uuid references public.profiles(id) on delete set null,
+ user_id uuid references public.profiles(id) on delete set null,
  category public.app_role not null,
  title text not null,
- description text,
+ content text,
  image_url text,
+ images text[] not null default '{}',
+ attributes jsonb not null default '{}'::jsonb,
  price numeric(14,2) not null default 0,
  currency text not null default 'IQD',
  status public.post_status not null default 'active',

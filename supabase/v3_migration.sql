@@ -24,6 +24,38 @@ create table if not exists public.audit_logs(
   created_at timestamptz default now()
 );
 
+-- Safe cleanup for existing SHAKH objects.
+-- Drop dependent policies and triggers before dropping functions.
+-- This avoids PostgreSQL dependency errors such as:
+-- "cannot drop function ... because other objects depend on it"
+
+drop policy if exists "public active posts" on public.posts;
+drop policy if exists "users create own posts" on public.posts;
+drop policy if exists "owners update own posts" on public.posts;
+drop policy if exists "owners delete own posts" on public.posts;
+drop policy if exists "users create permitted posts" on public.posts;
+drop policy if exists "owners or admins update posts" on public.posts;
+drop policy if exists "owners or admins delete posts" on public.posts;
+drop policy if exists "users see own profile" on public.profiles;
+drop policy if exists "users update own profile" on public.profiles;
+drop policy if exists "admins manage profiles" on public.profiles;
+drop policy if exists "customers create orders" on public.orders;
+drop policy if exists "users see related orders" on public.orders;
+drop policy if exists "captains update assigned orders" on public.orders;
+drop policy if exists "users see own order items" on public.order_items;
+drop policy if exists "users create order items" on public.order_items;
+drop policy if exists "users see own wallet transactions" on public.wallet_transactions;
+drop policy if exists "public can read platform settings" on public.platform_settings;
+drop policy if exists "authenticated can read own role permissions" on public.role_permissions;
+drop policy if exists "actors can create audit logs" on public.audit_logs;
+
+drop trigger if exists on_auth_user_created on auth.users;
+
+drop function if exists public.has_permission(text);
+drop function if exists public.has_role(public.app_role);
+drop function if exists public.current_user_role();
+drop function if exists public.handle_new_user();
+
 create or replace function public.handle_new_user()
 returns trigger
 language plpgsql
@@ -31,13 +63,22 @@ security definer set search_path = public
 as $$
 begin
   insert into public.profiles (id, full_name, phone, role)
-  values (new.id, coalesce(new.raw_user_meta_data->>'full_name', ''), new.phone, 'customer')
+  values (
+    new.id,
+    coalesce(nullif(trim(new.raw_user_meta_data->>'full_name'), ''), 'New customer'),
+    coalesce(nullif(trim(new.phone), ''), ''),
+    'customer'::public.app_role
+  )
   on conflict (id) do nothing;
   return new;
+exception when others then
+  raise exception using
+    message = 'handle_new_user failed while creating public.profiles',
+    detail = sqlerrm,
+    hint = 'Check public.profiles constraints, app_role values, and the Auth trigger permissions.';
 end;
 $$;
 
-drop trigger if exists on_auth_user_created on auth.users;
 create trigger on_auth_user_created
 after insert on auth.users
 for each row execute procedure public.handle_new_user();

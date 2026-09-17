@@ -1,11 +1,13 @@
 # Deployment checklist
 
-- [ ] Run `supabase/schema.sql`
+- [ ] For a new database, run `supabase/schema.sql`; for the existing production database, do not rerun it unless the preflight confirms missing core tables
 - [ ] Run `supabase/v3_enum_fix.sql` separately and let it commit
 - [ ] Run `supabase/v2_migration.sql` and `supabase/v3_migration.sql`
+- [ ] Run `supabase/post_category_attributes.sql` for the additive `posts.attributes` JSONB field
 - [ ] Run `supabase/legacy_compatibility.sql` for the previous database tables
+- [ ] Run `supabase/production_repair.sql` once for final Auth, RLS, Storage, and Realtime repair
 - [ ] Run `supabase/platform_services.sql` for Storage and Realtime
-- [ ] Enable Anonymous Sign-Ins, or replace the anonymous session with verified Auth
+- [ ] Use verified Auth; the frontend does not publish posts without a signed-in user
 - [ ] Confirm the auth trigger creates a `profiles` row
 - [ ] Set trusted users' roles in `profiles`
 - [ ] Add `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` from `.env.example`
@@ -17,6 +19,8 @@
 - [ ] Test cart
 - [ ] Test cash-on-delivery UI
 - [ ] Test car post category
+- [ ] Test clothing, car, supermarket, beauty, and food Create Post forms
+- [ ] Test Edit Post for each category and refresh from Supabase
 - [ ] Add Storage bucket for product images
 - [x] Add server-side authorization with role-based RLS policies
 - [ ] Add order status transitions and captain assignment
