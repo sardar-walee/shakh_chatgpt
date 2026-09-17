@@ -144,17 +144,7 @@ begin
     owner_column := 'user_id';
   end if;
 
-  if exists (
-    select 1
-    from pg_attribute
-    where attrelid = 'public.posts'::regclass
-      and attname = 'status'
-      and not attisdropped
-  ) then
-    execute format('create policy "public active posts" on public.posts for select using (%I::text = %L)', 'status', 'active');
-  else
-    execute 'create policy "public active posts" on public.posts for select using (true)';
-  end if;
+  execute 'create policy "public active posts" on public.posts for select using (true)';
 
   if owner_column is not null then
     execute format('create policy "users create permitted posts" on public.posts for insert with check (auth.uid() = %I and public.has_permission(''create_posts''))', owner_column);

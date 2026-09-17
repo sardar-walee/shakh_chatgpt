@@ -159,10 +159,32 @@ create table if not exists public.reviews (
 );
 
 -- Useful indexes for the marketplace and delivery screens.
-create index if not exists products_status_idx on public.products(status);
+do $$
+begin
+  if exists (
+    select 1
+    from information_schema.columns
+    where table_schema = 'public'
+      and table_name = 'products'
+      and column_name = 'status'
+  ) then
+    execute 'create index if not exists products_status_idx on public.products(status)';
+  end if;
+end $$;
 create index if not exists products_seller_id_idx on public.products(seller_id);
 create index if not exists meals_restaurant_id_idx on public.meals(restaurant_id);
-create index if not exists cars_status_idx on public.cars(status);
+do $$
+begin
+  if exists (
+    select 1
+    from information_schema.columns
+    where table_schema = 'public'
+      and table_name = 'cars'
+      and column_name = 'status'
+  ) then
+    execute 'create index if not exists cars_status_idx on public.cars(status)';
+  end if;
+end $$;
 create index if not exists notifications_user_id_idx on public.notifications(user_id, created_at desc);
 create index if not exists transactions_user_id_idx on public.transactions(user_id, created_at desc);
 create index if not exists legacy_favorites_user_id_idx on public.favorites(user_id);
