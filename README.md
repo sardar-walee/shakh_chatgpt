@@ -33,13 +33,19 @@ npm run dev
 3. Run `supabase/schema.sql`, then run `supabase/v3_enum_fix.sql` by itself and let it commit.
 4. Run `supabase/v2_migration.sql`, then `supabase/v3_migration.sql`. v3 is also safe when v2 was skipped.
 5. Run `supabase/legacy_compatibility.sql` to preserve the previous marketplace tables (`cars`, `restaurants`, `supermarkets`, wallets, campaigns, notifications, and related tables).
-6. Enable **Anonymous Sign-Ins** in Supabase Auth (the frontend uses an anonymous session until a full login screen is added).
-7. Copy the public anon key into `.env`:
+6. Run `supabase/platform_services.sql` to configure Storage and Realtime.
+7. Enable Email Auth in Supabase and configure the redirect URL for your production domain.
+8. Copy the public keys into `.env`:
 ```env
 VITE_SUPABASE_URL=https://pmsrrsvvhjclvtdpkbmh.supabase.co
 VITE_SUPABASE_ANON_KEY=YOUR_PUBLIC_ANON_KEY
+VITE_SUPABASE_STORAGE_BUCKET=product-images
+VITE_MAP_API_KEY=YOUR_PUBLIC_MAP_API_KEY
+VITE_MAP_STYLE_URL=https://demotiles.maplibre.org/style.json
 ```
-8. Do not put a `service_role` key in frontend code.
+9. Do not put a `service_role` key in frontend code.
+
+The web app is installable as a PWA. On supported browsers it shows an install prompt, listens for live post/order changes through Realtime, and displays a short update message when a new deployment is available.
 
 ## GitHub
 ```bash

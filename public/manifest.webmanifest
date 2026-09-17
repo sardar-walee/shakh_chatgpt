@@ -1,0 +1,14 @@
+{
+  "name": "Shakh Super",
+  "short_name": "Shakh",
+  "description": "SHAKH SUPER marketplace and delivery platform",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f6f8fc",
+  "theme_color": "#f97316",
+  "dir": "rtl",
+  "lang": "ku",
+  "icons": [
+    { "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+  ]
+}

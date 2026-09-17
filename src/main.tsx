@@ -2,6 +2,7 @@ import React, {useEffect, useMemo, useState} from "react";
 import {createRoot} from "react-dom/client";
 import {ShoppingCart, Search, UserRound, Bike, Store, Utensils, Shirt, Sparkles, CarFront, ShieldCheck, Plus, Trash2, LayoutDashboard, Wallet, Package, Languages, Menu, X} from "lucide-react";
 import {isSupabaseConfigured, supabase} from "./lib/supabase";
+import {mapConfig} from "./lib/platform";
 import "./styles.css";
 
 type Role="super_admin"|"admin"|"captain"|"restaurant"|"supermarket"|"fashion"|"beauty"|"car_dealer"|"customer";
@@ -32,21 +33,58 @@ function App(){
  const [products,setProducts]=useState<Product[]>(seed);
  const [userId,setUserId]=useState<string|null>(null);
  const [loading,setLoading]=useState(isSupabaseConfigured);
+ const [authMode,setAuthMode]=useState<"login"|"signup">("login");
+ const [authEmail,setAuthEmail]=useState("");
+ const [authPassword,setAuthPassword]=useState("");
+ const [authName,setAuthName]=useState("");
+ const [authBusy,setAuthBusy]=useState(false);
+ const [authMessage,setAuthMessage]=useState("");
+ const [installPrompt,setInstallPrompt]=useState<any>(null);
+ const [updateReady,setUpdateReady]=useState(false);
  const [showMenu,setShowMenu]=useState(false);
  const [notice,setNotice]=useState("");
  const [form,setForm]=useState({name:"",price:"",category:"restaurant",emoji:"📦"});
  const t=(ku:string,ar:string,en:string)=>lang==="ku"?ku:lang==="ar"?ar:en;
  useEffect(()=>{void loadData()},[]);
+ useEffect(()=>{
+  const install=(event:Event)=>{event.preventDefault();setInstallPrompt(event)};
+  window.addEventListener("beforeinstallprompt",install);
+  const onMessage=(event:MessageEvent)=>{if(event.data?.type==="APP_UPDATE_READY")setUpdateReady(true)};
+  navigator.serviceWorker?.addEventListener("message",onMessage);
+  if("serviceWorker" in navigator)void navigator.serviceWorker.register("/sw.js");
+  return()=>{window.removeEventListener("beforeinstallprompt",install);navigator.serviceWorker?.removeEventListener("message",onMessage)};
+ },[]);
+ useEffect(()=>{
+  const client=supabase;
+  if(!client)return;
+  const channel=client.channel("posts-live").on("postgres_changes",{event:"*",schema:"public",table:"posts"},()=>{void loadData()}).subscribe();
+  return()=>{void client.removeChannel(channel)};
+ },[userId]);
  async function loadData(){
   if(!supabase){setLoading(false);return;}
   const {data:sessionData}=await supabase.auth.getSession();
-  let session=sessionData.session;
-  if(!session){const result=await supabase.auth.signInAnonymously();session=result.data.session;}
+    const session=sessionData.session;
   setUserId(session?.user.id??null);
-  const {data,error}=await supabase.from("posts").select("id,title,category,price,status,image_url,profiles(full_name)").eq("status","active").order("created_at",{ascending:false});
-  if(!error&&data){setProducts(data.map((post:any)=>({id:post.id,name:post.title,category:post.category,price:Number(post.price),emoji:post.image_url||"📦",owner:post.profiles?.full_name||"SHAKH SUPER",status:post.status})))}
+    const query=supabase.from("posts").select("id,title,category,price,status,image_url,profiles(full_name)").eq("status","active").order("created_at",{ascending:false});
+    const {data,error}=await query;
+    if(!error&&data){setProducts(data.map((post:any)=>({id:post.id,name:post.title,category:post.category,price:Number(post.price),emoji:post.image_url||"📦",owner:post.profiles?.full_name||"SHAKH SUPER",status:post.status})))}
   setLoading(false);
  }
+ async function authenticate(){
+  if(!supabase){setAuthMessage(t("پەیوەندی Supabase ڕێک نەخراوە","لم يتم إعداد اتصال Supabase","Supabase is not configured"));return;}
+  if(!authEmail||!authPassword)return;
+    setAuthBusy(true);setAuthMessage("");
+    const result=authMode==="signup"
+     ?await supabase.auth.signUp({email:authEmail,password:authPassword,options:{data:{full_name:authName}}})
+     :await supabase.auth.signInWithPassword({email:authEmail,password:authPassword});
+    if(result.error){setAuthMessage(result.error.message);setAuthBusy(false);return;}
+    if(authMode==="signup"&&!result.data.session){setAuthMessage(t("ئیمەیڵەکەت پشتڕاست بکەرەوە، پاشان بچۆ ژوورەوە","تحقق من بريدك الإلكتروني ثم سجل الدخول","Check your email, then sign in"));}
+    else {setAuthMessage("");await loadData();}
+    setAuthBusy(false);
+ }
+ async function signOut(){if(supabase)await supabase.auth.signOut();setUserId(null);setRole("customer");}
+ async function installApp(){if(!installPrompt)return;await installPrompt.prompt();setInstallPrompt(null);}
+ function refreshApp(){navigator.serviceWorker?.controller?.postMessage({type:"SKIP_WAITING"});window.location.reload();}
  const visible=useMemo(()=>products.filter(p=>(category==="all"||p.category===category)&&`${p.name} ${p.owner}`.toLowerCase().includes(search.toLowerCase())&&p.status==="active"),[products,category,search]);
  const money=(n:number)=>new Intl.NumberFormat("en-US").format(n)+" د.ع";
  async function add(){
@@ -76,7 +114,7 @@ function App(){
    <button className="iconbtn mobile" onClick={()=>setShowMenu(!showMenu)}>{showMenu?<X/>:<Menu/>}</button>
    <div className="brand" onClick={()=>{setTab("home");setCategory("all")}}><div className="brandmark">S</div><div><b>SHAKH <span>SUPER</span></b><small>{t("هەموو شتێک لە یەک شوێن","كل ما تحتاجه في مكان واحد","Everything in one place")}</small></div></div>
    <div className="search"><Search size={18}/><input placeholder={t("گەڕان بۆ کالا، چێشتخانە، ئۆتۆمبێل...","ابحث عن منتج أو سيارة...","Search products, restaurants, cars...")} value={search} onChange={e=>setSearch(e.target.value)}/></div>
-   <div className="actions"><button className="lang" onClick={()=>setLang(lang==="ku"?"ar":lang==="ar"?"en":"ku")}><Languages size={17}/>{lang.toUpperCase()}</button><button className="cart" onClick={()=>setTab("cart")}><ShoppingCart size={19}/><span>{cart.length}</span></button><button className="avatar"><UserRound size={19}/></button></div>
+    <div className="actions"><button className="lang" onClick={()=>setLang(lang==="ku"?"ar":lang==="ar"?"en":"ku")}><Languages size={17}/>{lang.toUpperCase()}</button><button className="cart" onClick={()=>setTab("cart")}><ShoppingCart size={19}/><span>{cart.length}</span></button>{userId?<button className="avatar" onClick={signOut} title={t("چوونەدەرەوە","تسجيل الخروج","Sign out")}><UserRound size={19}/></button>:<button className="avatar" onClick={()=>setTab("auth")} title={t("چوونەژوورەوە","تسجيل الدخول","Sign in")}><UserRound size={19}/></button>}</div>
   </header>
   <div className={"layout "+(showMenu?"open":"")}>
    <aside className="sidebar">
@@ -88,15 +126,18 @@ function App(){
     <button onClick={()=>setTab("wallet")}><Wallet/>{t("پارە و مامەڵەکان","المحفظة والمعاملات","Wallet")}</button>
     {canPost&&<button onClick={()=>setTab("post")}><Plus/>{t("پۆستی نوێ","منشور جديد","New post")}</button>}
    </aside>
-   <main className="main">
+  <main className="main">
+   {installPrompt&&<div className="notice">{t("ئەپەکە دابەزێنە بۆ ئەزموونی خێراتر","ثبّت التطبيق لتجربة أسرع","Install the app for a faster experience")}<button onClick={installApp}>{t("دابەزاندن","تثبيت","Install")}</button></div>}
+   {updateReady&&<div className="notice">{t("نوێکردنەوەی نوێ بەردەستە؛ پەڕەکە نوێ بکەرەوە","تحديث جديد متاح؛ أعد فتح التطبيق","A new update is ready; reopen the app")}<button onClick={refreshApp}>{t("نوێکردنەوە","تحديث","Update")}</button></div>}
     <section className="hero"><div><div className="eyebrow">SHAKH SUPER</div><h1>{t("بازاڕی دیجیتاڵی شاخ","سوق شاخ الرقمي","Shakh digital marketplace")}</h1><p>{t("خواردن، کاڵا، جل و بەرگ، جوانکاری و ئۆتۆمبێل؛ هەمووی لە یەک ئەپ.","طعام، تسوق، أزياء، تجميل وسيارات في تطبيق واحد.","Food, shopping, fashion, beauty and cars in one app.")}</p><button onClick={()=>setCategory("all")}>{t("دەستپێبکە","ابدأ الآن","Start exploring")} <span>←</span></button></div><div className="hero-art">🛍️<div>🚗 🍔 👕 💄</div></div></section>
     {notice&&<div className="notice">{notice}<button onClick={()=>setNotice("")}>×</button></div>}
-    {loading?<div className="panel"><p>{t("داتاکان بار دەکرێن...","جار تحميل البيانات...","Loading data...")}</p></div>:tab==="cart"?<Cart cart={cart} setCart={setCart} money={money} t={t} checkout={checkout}/>:tab==="post"?<Post form={form} setForm={setForm} add={add} t={t}/>:tab==="dashboard"?<Dashboard products={products} role={role} setRole={setRole} t={t}/>:tab==="wallet"?<WalletView money={money} t={t}/>:<><div className="section-head"><div><h2>{t("پۆستە نوێکان","المنشورات الجديدة","Latest posts")}</h2><p>{t("بەرهەمەکانت هەڵبژێرە و داواکاری بکە","اختر منتجاتك واطلب الآن","Choose products and order now")}</p></div><div className="role-select"><UserRound size={16}/><select value={role} onChange={e=>setRole(e.target.value as Role)}><option value="customer">{t("کڕیار","عميل","Customer")}</option>{roles.map(r=><option value={r.id} key={r.id}>{t(r.ku,r.ar,r.en)}</option>)}<option value="super_admin">Super Admin</option></select></div></div><div className="chips"><button className={category==="all"?"selected":""} onClick={()=>setCategory("all")}>{t("هەموو","الكل","All")}</button>{roles.map(r=><button className={category===r.id?"selected":""} onClick={()=>setCategory(r.id)} key={r.id}>{t(r.ku,r.ar,r.en)}</button>)}</div><div className="grid">{visible.map(p=><article className="card" key={p.id}><div className="product-image">{p.emoji}<span className="badge">{p.category==="car_dealer"?t("فرۆشتنی ئۆتۆمبێل","سيارة للبيع","For sale"):t("بەردەستە","متوفر","Available")}</span></div><div className="card-body"><small>{p.owner}</small><h3>{p.name}</h3><div className="price">{money(p.price)}</div><button className="add" onClick={()=>buy(p)}><Plus size={17}/>{t("زیادکردن بۆ سەبەتە","أضف للسلة","Add to cart")}</button></div></article>)}</div></>}
+    {loading?<div className="panel"><p>{t("داتاکان بار دەکرێن...","جار تحميل البيانات...","Loading data...")}</p></div>:tab==="auth"?<Auth mode={authMode} setMode={setAuthMode} email={authEmail} setEmail={setAuthEmail} password={authPassword} setPassword={setAuthPassword} name={authName} setName={setAuthName} busy={authBusy} message={authMessage} submit={authenticate} t={t}/>:tab==="cart"?<Cart cart={cart} setCart={setCart} money={money} t={t} checkout={checkout}/>:tab==="post"?<Post form={form} setForm={setForm} add={add} t={t}/>:tab==="dashboard"?<Dashboard products={products} role={role} setRole={setRole} t={t}/>:tab==="wallet"?<WalletView money={money} t={t}/>:<><div className="section-head"><div><h2>{t("پۆستە نوێکان","المنشورات الجديدة","Latest posts")}</h2><p>{t("بەرهەمەکانت هەڵبژێرە و داواکاری بکە","اختر منتجاتك واطلب الآن","Choose products and order now")}</p></div><div className="role-select"><UserRound size={16}/><select value={role} onChange={e=>setRole(e.target.value as Role)}><option value="customer">{t("کڕیار","عميل","Customer")}</option>{roles.map(r=><option value={r.id} key={r.id}>{t(r.ku,r.ar,r.en)}</option>)}<option value="super_admin">Super Admin</option></select></div></div><div className="chips"><button className={category==="all"?"selected":""} onClick={()=>setCategory("all")}>{t("هەموو","الكل","All")}</button>{roles.map(r=><button className={category===r.id?"selected":""} onClick={()=>setCategory(r.id)} key={r.id}>{t(r.ku,r.ar,r.en)}</button>)}</div><div className="grid">{visible.map(p=><article className="card" key={p.id}><div className="product-image">{p.emoji}<span className="badge">{p.category==="car_dealer"?t("فرۆشتنی ئۆتۆمبێل","سيارة للبيع","For sale"):t("بەردەستە","متوفر","Available")}</span></div><div className="card-body"><small>{p.owner}</small><h3>{p.name}</h3><div className="price">{money(p.price)}</div><button className="add" onClick={()=>buy(p)}><Plus size={17}/>{t("زیادکردن بۆ سەبەتە","أضف للسلة","Add to cart")}</button></div></article>)}</div></>}
    </main>
   </div>
   <footer>{t("© شاخ سوپەر — پلاتفۆرمی فرۆشتن و گەیاندن","© شاخ سوبر — منصة التسوق والتوصيل","© Shakh Super — Marketplace & delivery platform")} <span>کوردی · عربي · English</span></footer>
  </div>
 }
+function Auth({mode,setMode,email,setEmail,password,setPassword,name,setName,busy,message,submit,t}:{mode:"login"|"signup";setMode:React.Dispatch<React.SetStateAction<"login"|"signup">>;email:string;setEmail:React.Dispatch<React.SetStateAction<string>>;password:string;setPassword:React.Dispatch<React.SetStateAction<string>>;name:string;setName:React.Dispatch<React.SetStateAction<string>>;busy:boolean;message:string;submit:()=>void;t:(a:string,b:string,c:string)=>string}){return <div className="panel"><h2>{mode==="login"?t("چوونەژوورەوە","تسجيل الدخول","Sign in"):t("دروستکردنی هەژمار","إنشاء حساب","Create account")}</h2><div className="form">{mode==="signup"&&<input placeholder={t("ناوی تەواو","الاسم الكامل","Full name")} value={name} onChange={e=>setName(e.target.value)}/>}<input type="email" autoComplete="email" placeholder={t("ئیمەیڵ","البريد الإلكتروني","Email")} value={email} onChange={e=>setEmail(e.target.value)}/><input type="password" autoComplete={mode==="login"?"current-password":"new-password"} placeholder={t("وشەی نهێنی","كلمة المرور","Password")} value={password} onChange={e=>setPassword(e.target.value)}/>{message&&<p className="notice">{message}</p>}<button className="primary" disabled={busy||!email||!password} onClick={submit}>{busy?t("چاوەڕوان بە...","انتظر...","Please wait..."):mode==="login"?t("چوونەژوورەوە","تسجيل الدخول","Sign in"):t("دروستکردنی هەژمار","إنشاء حساب","Create account")}</button><button type="button" className="linkbtn" onClick={()=>setMode(mode==="login"?"signup":"login")}>{mode==="login"?t("هەژمارت نییە؟ دروستی بکە","ليس لديك حساب؟ أنشئ حساباً","Create an account"):t("پێشتر هەژمارت هەیە؟ بچۆ ژوورەوە","لديك حساب؟ سجل الدخول","Already have an account? Sign in")}</button></div></div>}
 function Cart({cart,setCart,money,t,checkout}:{cart:Product[];setCart:React.Dispatch<React.SetStateAction<Product[]>>;money:(n:number)=>string;t:(a:string,b:string,c:string)=>string;checkout:()=>void}){const total=cart.reduce((s,p)=>s+p.price,0);return <div className="panel"><h2>{t("سەبەتەی کڕین","سلة التسوق","Shopping cart")}</h2>{cart.length===0?<p>{t("سەبەتەکە بەتاڵە","السلة فارغة","Your cart is empty")}</p>:<>{cart.map((p,i)=><div className="cartrow" key={`${p.id}-${i}`}><span>{p.emoji} {p.name}</span><b>{money(p.price)}</b><button onClick={()=>setCart(c=>c.filter((_,j)=>j!==i))}><Trash2 size={16}/></button></div>)}<div className="total">{t("کۆی گشتی","المجموع","Total")} <b>{money(total)}</b></div><button className="primary" onClick={checkout}>{t("داواکاری بە کاش لە کاتی گەیاندن","الدفع نقداً عند الاستلام","Cash on delivery")} ✓</button></>}</div>}
 function Post({form,setForm,add,t}:{form:any;setForm:any;add:()=>void;t:(a:string,b:string,c:string)=>string}){return <div className="panel"><h2>{t("پۆستی نوێ زیاد بکە","إضافة منشور جديد","Create new post")}</h2><div className="form"><input placeholder={t("ناوی کالا یان ئۆتۆمبێل","اسم المنتج أو السيارة","Product or car name")} value={form.name} onChange={e=>setForm({...form,name:e.target.value})}/><input type="number" placeholder={t("نرخ بە دینار","السعر بالدينار","Price in IQD")} value={form.price} onChange={e=>setForm({...form,price:e.target.value})}/><select value={form.category} onChange={e=>setForm({...form,category:e.target.value})}>{roles.filter(r=>r.id!=="captain").map(r=><option value={r.id} key={r.id}>{t(r.ku,r.ar,r.en)}</option>)}</select><input placeholder="Emoji" value={form.emoji} onChange={e=>setForm({...form,emoji:e.target.value})}/><button className="primary" onClick={add}><Plus/> {t("پۆستکردن","نشر","Publish")}</button></div></div>}
 function Dashboard({products,role,setRole,t}:{products:Product[];role:Role;setRole:any;t:(a:string,b:string,c:string)=>string}){return <div className="panel"><h2>{t("داشبۆردی بەڕێوەبردن","لوحة التحكم","Management dashboard")}</h2><div className="stats"><div><Package/><b>{products.length}</b><span>{t("کۆی پۆستەکان","إجمالي المنشورات","Total posts")}</span></div><div><Wallet/><b>1,250,000</b><span>{t("پارەی نموونەیی","رصيد تجريبي","Demo balance")}</span></div><div><Bike/><b>24</b><span>{t("گەیاندنی چالاک","طلبات التوصيل","Deliveries")}</span></div></div><label>{t("ڕۆڵی تاقیکردنەوە","دور التجربة","Demo role")}</label><select value={role} onChange={e=>setRole(e.target.value)}>{["super_admin","admin","captain","restaurant","supermarket","fashion","beauty","car_dealer","customer"].map(r=><option key={r}>{r}</option>)}</select><p>{t("ئەم داشبۆردە وەشانی سەرەتاییە؛ دەسەڵاتەکان لە Supabase بە RLS پارێزراون.","هذه لوحة أولية؛ الصلاحيات تحمى عبر Supabase RLS.","This is a starter dashboard; permissions are protected by Supabase RLS.")}</p></div>}

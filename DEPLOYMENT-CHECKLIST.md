@@ -4,11 +4,14 @@
 - [ ] Run `supabase/v3_enum_fix.sql` separately and let it commit
 - [ ] Run `supabase/v2_migration.sql` and `supabase/v3_migration.sql`
 - [ ] Run `supabase/legacy_compatibility.sql` for the previous database tables
+- [ ] Run `supabase/platform_services.sql` for Storage and Realtime
 - [ ] Enable Anonymous Sign-Ins, or replace the anonymous session with verified Auth
 - [ ] Confirm the auth trigger creates a `profiles` row
 - [ ] Set trusted users' roles in `profiles`
 - [ ] Add `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` from `.env.example`
 - [ ] Add Vercel environment variables
+- [ ] Add the production domain to Supabase Auth redirect URLs
+- [ ] Add a public map provider key and style URL
 - [ ] Test language switcher
 - [ ] Test category filters
 - [ ] Test cart

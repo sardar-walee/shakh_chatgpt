@@ -144,8 +144,14 @@ begin
     owner_column := 'user_id';
   end if;
 
-  if exists (select 1 from information_schema.columns where table_schema = 'public' and table_name = 'posts' and column_name = 'status') then
-    execute 'create policy "public active posts" on public.posts for select using (status = ''active'')';
+  if exists (
+    select 1
+    from pg_attribute
+    where attrelid = 'public.posts'::regclass
+      and attname = 'status'
+      and not attisdropped
+  ) then
+    execute format('create policy "public active posts" on public.posts for select using (%I::text = %L)', 'status', 'active');
   else
     execute 'create policy "public active posts" on public.posts for select using (true)';
   end if;
