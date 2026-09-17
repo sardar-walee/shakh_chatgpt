@@ -22,6 +22,14 @@ const seed:Product[]=[
 {id:"demo-4",name:"کۆمەڵەی جوانکاری",category:"beauty",price:22000,emoji:"💄",owner:"شاخ بیوتی",status:"active"},
 {id:"demo-5",name:"Toyota Corolla 2018",category:"car_dealer",price:18500000,emoji:"🚗",owner:"کڕیار",status:"active"}
 ];
+function readableAuthError(error:unknown,t:(a:string,b:string,c:string)=>string){
+ const message=typeof error==="object"&&error!==null&&"message" in error?String((error as {message?:unknown}).message||""):String(error||"");
+ if(!message||message==="[object Object]"||message==="{}")return t("هەڵەیەک ڕوویدا. تکایە دواتر هەوڵ بدەرەوە.","حدث خطأ. حاول مرة أخرى.","Something went wrong. Please try again.");
+ if(message.toLowerCase().includes("email not confirmed"))return t("ئیمەیڵەکەت پشتڕاست نەکراوەتەوە. inbox و spam ـەکەت بپشکنە.","لم يتم تأكيد بريدك الإلكتروني. تحقق من inbox و spam.","Your email is not confirmed. Check your inbox and spam folder.");
+ if(message.toLowerCase().includes("invalid login credentials"))return t("ئیمەیڵ یان وشەی نهێنی هەڵەیە.","البريد الإلكتروني أو كلمة المرور غير صحيحة.","The email or password is incorrect.");
+ if(message.toLowerCase().includes("user already registered"))return t("ئەم ئیمەیڵە پێشتر هەژماری هەیە.","هذا البريد الإلكتروني مسجل مسبقاً.","This email is already registered.");
+ return message;
+}
 
 function App(){
  const [lang,setLang]=useState<"ku"|"ar"|"en">("ku");
@@ -85,9 +93,9 @@ function App(){
   if(!authEmail||!authPassword)return;
     setAuthBusy(true);setAuthMessage("");
     const result=authMode==="signup"
-     ?await supabase.auth.signUp({email:authEmail,password:authPassword,options:{data:{full_name:authName}}})
+    ?await supabase.auth.signUp({email:authEmail,password:authPassword,options:{data:{full_name:authName},emailRedirectTo:window.location.origin}})
      :await supabase.auth.signInWithPassword({email:authEmail,password:authPassword});
-    if(result.error){setAuthMessage(result.error.message);setAuthBusy(false);return;}
+    if(result.error){setAuthMessage(readableAuthError(result.error,t));setAuthBusy(false);return;}
     if(authMode==="signup"&&!result.data.session){setAuthMessage(t("ئیمەیڵەکەت پشتڕاست بکەرەوە، پاشان بچۆ ژوورەوە","تحقق من بريدك الإلكتروني ثم سجل الدخول","Check your email, then sign in"));}
     else {setAuthMessage("");await loadData();}
     setAuthBusy(false);
@@ -97,16 +105,23 @@ function App(){
     if(!authEmail){setAuthMessage(t("تکایە ئیمەیڵەکەت بنووسە","أدخل بريدك الإلكتروني","Enter your email address"));return;}
     setAuthBusy(true);setAuthMessage("");
     const {error}=await supabase.auth.resetPasswordForEmail(authEmail,{redirectTo:window.location.origin});
-    setAuthMessage(error?.message||t("لینکی گۆڕینی وشەی نهێنی بۆ ئیمەیڵەکەت نێردرا. inbox ـەکەت بپشکنە.","تم إرسال رابط إعادة تعيين كلمة المرور إلى بريدك.","A password reset link was sent to your email."));
+    setAuthMessage(error?readableAuthError(error,t):t("لینکی گۆڕینی وشەی نهێنی بۆ ئیمەیڵەکەت نێردرا. inbox ـەکەت بپشکنە.","تم إرسال رابط إعادة تعيين كلمة المرور إلى بريدك.","A password reset link was sent to your email."));
     setAuthBusy(false);
    }
+    async function resendConfirmation(){
+     if(!supabase||!authEmail){setAuthMessage(t("ئیمەیڵەکەت بنووسە بۆ دووبارە ناردنەوەی پشتڕاستکردنەوە.","أدخل بريدك لإعادة إرسال رسالة التأكيد.","Enter your email to resend the confirmation email."));return;}
+     setAuthBusy(true);setAuthMessage("");
+     const {error}=await supabase.auth.resend({type:"signup",email:authEmail});
+     setAuthMessage(error?readableAuthError(error,t):t("ئیمەیڵی پشتڕاستکردنەوە دووبارە نێردرا.","تمت إعادة إرسال رسالة التأكيد.","The confirmation email was resent."));
+     setAuthBusy(false);
+    }
    async function updatePassword(){
     if(!supabase)return;
     if(authPassword.length<6){setAuthMessage(t("وشەی نهێنی دەبێت لانیکەم ٦ پیت بێت","يجب أن تتكون كلمة المرور من 6 أحرف على الأقل","Password must be at least 6 characters"));return;}
     if(authPassword!==authConfirmPassword){setAuthMessage(t("وشە نهێنییەکان یەکسان نین","كلمتا المرور غير متطابقتين","Passwords do not match"));return;}
     setAuthBusy(true);setAuthMessage("");
     const {error}=await supabase.auth.updateUser({password:authPassword});
-    if(error)setAuthMessage(error.message);
+    if(error)setAuthMessage(readableAuthError(error,t));
     else {setAuthMode("login");setAuthPassword("");setAuthConfirmPassword("");setAuthMessage(t("وشەی نهێنی نوێ کرایەوە. ئێستا دەتوانیت بچیتە ژوورەوە.","تم تحديث كلمة المرور. يمكنك تسجيل الدخول الآن.","Password updated. You can sign in now."));}
     setAuthBusy(false);
    }
