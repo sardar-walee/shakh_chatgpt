@@ -111,7 +111,10 @@ function App(){
   let submitHandler:((event:MouseEvent)=>void)|null=null;
   if(authMode==="signup"&&submitButton&&!form.querySelector("#auth-terms")){
    terms=document.createElement("input");terms.type="checkbox";terms.id="auth-terms";terms.required=true;
-   termsLabel=document.createElement("label");termsLabel.className="terms-field";termsLabel.append(terms,document.createTextNode(t("مەرج و یاساکان قبوڵ دەکەم","أوافق على الشروط والأحكام","I accept the terms and conditions")));
+  termsLabel=document.createElement("label");termsLabel.className="terms-field";
+  const termsText=document.createTextNode(t("مەرج و یاساکان قبوڵ دەکەم ","أوافق على الشروط والأحكام ","I accept the terms and conditions "));
+  const privacyLink=document.createElement("a");privacyLink.href="https://daim-post.online/privacy-policy.html";privacyLink.target="_blank";privacyLink.rel="noopener noreferrer";privacyLink.textContent=t("سیاسەتی تایبەتمەندی","سياسة الخصوصية","Privacy policy");
+  termsLabel.append(terms,termsText,privacyLink);
    submitButton.before(termsLabel);
    submitHandler=event=>{if(!terms?.checked){event.preventDefault();event.stopImmediatePropagation();setAuthMessage(t("پێویستە مەرج و یاساکان قبوڵ بکەیت","يجب الموافقة على الشروط والأحكام","You must accept the terms and conditions"));}};
    submitButton.addEventListener("click",submitHandler,true);
@@ -160,9 +163,9 @@ function App(){
  async function loadWallet(currentUserId:string){
   if(!supabase)return;
   setWalletLoading(true);
-  const {data,error}=await supabase.from("wallet_transactions").select("id,type,kind,amount,status,reference_id,created_at,note").eq("user_id",currentUserId).order("created_at",{ascending:false});
+  const {data,error}=await supabase.from("wallet_transactions").select("id,type,amount,status,reference_id,created_at,note").eq("user_id",currentUserId).order("created_at",{ascending:false});
   if(error){console.error("Supabase wallet load error",error);setWalletTransactions([])}
-  else setWalletTransactions((data||[]).map((item:any)=>({...item,type:item.type||item.kind||"transaction",amount:Number(item.amount||0)})));
+  else setWalletTransactions((data||[]).map((item:any)=>({...item,type:item.type||"transaction",amount:Number(item.amount||0)})));
   setWalletLoading(false);
  }
  async function authenticate(){
