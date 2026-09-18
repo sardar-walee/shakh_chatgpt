@@ -306,9 +306,16 @@ function Dashboard({products,role,t}:{products:Product[];role:Role;setRole:any;t
   ["create_orders","درووستکردنی داواکاری","إنشاء الطلبات","Create orders"],
   ["manage_wallet","بەڕێوەبردنی جزدان و پارە","إدارة المحفظة والأموال","Manage wallet and funds"],
   ["manage_payouts","پشکنینی داواکارییەکانی پارەدانەوە","مراجعة طلبات السحب","Review payout requests"],
+  ["request_payout","ناردنی داواکاری پارەدانەوە","إرسال طلب سحب","Request payout"],
   ["manage_settings","گۆڕینی ڕێکخستنەکانی پلاتفۆرم","تعديل إعدادات المنصة","Manage platform settings"],
   ["view_audit_logs","بینینی تۆماری چاودێری","عرض سجل التدقيق","View audit logs"],
-  ["manage_permissions","بەڕێوەبردنی دەسەڵاتەکان","إدارة الصلاحيات","Manage permissions"]
+  ["manage_permissions","بەڕێوەبردنی دەسەڵاتەکان","إدارة الصلاحيات","Manage permissions"],
+  ["create_car_posts","درووستکردنی پۆستی ئۆتۆمبێل","إنشاء إعلانات السيارات","Create car posts"],
+  ["manage_own_posts","بەڕێوەبردنی پۆستەکانی خۆت","إدارة المنشورات الخاصة","Manage own posts"],
+  ["manage_own_deliveries","بەڕێوەبردنی گەیاندنەکانی خۆت","إدارة عمليات التوصيل الخاصة","Manage own deliveries"],
+  ["create_captain","زیادکردنی گەیاندکار","إضافة مندوب توصيل","Create captains"],
+  ["view_active_posts","بینینی پۆستە چالاکەکان","عرض المنشورات النشطة","View active posts"],
+  ["manage_storage","بەڕێوەبردنی وێنە و فایلەکان","إدارة الصور والملفات","Manage images and files"]
  ] as const;
  return <div className="panel"><div className="section-head"><div><h2>{t("داشبۆردی بەڕێوەبردن","لوحة التحكم","Management dashboard")}</h2><p>{roleLabel(role,t)}</p></div><ShieldCheck/></div><div className="stats"><div><Package/><b>{products.length}</b><span>{t("پۆستەکانی بارکراو","المنشورات المحملة","Loaded posts")}</span></div><div><ShieldCheck/><b>{role==="super_admin"?"*":permissions.length}</b><span>{t("دەسەڵاتەکان","الصلاحيات","Permissions")}</span></div></div>{role==="super_admin"&&<div className="admin-banner"><strong>{t("سوپەر ئەدمین: هەموو دەسەڵاتەکان چالاکن","المشرف العام: جميع الصلاحيات مفعلة","Super admin: all permissions enabled")}</strong><span>{t("دەسەڵاتی * واتە دەستگەیشتن بە هەموو بەش و کردارەکانی پلاتفۆرم.","صلاحية * تعني الوصول إلى جميع أقسام وإجراءات المنصة.","The * permission grants access to every platform section and action.")}</span></div>}<div className="permission-list"><h3>{t("لیستی دەسەڵاتەکان","قائمة الصلاحيات","Permission list")}</h3>{permissions.map(([permission,ku,ar,en])=><div className="permission-row" key={permission}><ShieldCheck size={17}/><span>{t(ku,ar,en)}</span><code>{role==="super_admin"?"*":permission}</code></div>)}</div><p>{t("دەسەڵات و داتا لە Supabase و RLS ـەوە کۆنترۆڵ دەکرێن.","الصلاحيات والبيانات تدار عبر Supabase و RLS.","Permissions and data are controlled by Supabase and RLS.")}</p></div>}
 function AccessDenied({t}:{t:(a:string,b:string,c:string)=>string}){return <div className="panel"><h2>{t("دەسەڵاتت نییە","لا تملك الصلاحية","Access denied")}</h2><p>{t("ئەم کردارە بۆ ڕۆڵەکەت ڕێگەپێنەدراوە.","هذا الإجراء غير مسموح لدورك.","This action is not allowed for your role.")}</p></div>}

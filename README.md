@@ -63,7 +63,7 @@ The web app is installable as a PWA. On supported browsers it shows an install p
 ```bash
 git init
 git add .
-git commit -m "SHAKH  SUPERv2.4.0"
+git commit -m "SHAKH  SUPERv2.6.0"
 git branch -M main
 git remote add origin YOUR_GITHUB_REPOSITORY_URL
 git push -u origin main
