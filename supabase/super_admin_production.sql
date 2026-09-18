@@ -10,27 +10,16 @@ alter type public.order_status add value if not exists 'on_the_way';
 begin;
 
 create table if not exists public.marketplace_categories(
-  id uuid primary key default gen_random_uuid(),
-  slug text not null unique,
-  name text not null,
-  name_ar text,
-  name_en text,
-  image_url text,
-  active boolean not null default true,
-  sort_order integer not null default 0,
-  allowed_roles text[] not null default '{}',
-  fields jsonb not null default '[]'::jsonb,
-  created_at timestamptz not null default now(),
-  updated_at timestamptz not null default now()
+  id uuid primary key default gen_random_uuid(), slug text not null unique,
+  name text not null, name_ar text, name_en text, image_url text,
+  active boolean not null default true, sort_order integer not null default 0,
+  allowed_roles text[] not null default '{}', fields jsonb not null default '[]'::jsonb,
+  created_at timestamptz not null default now(), updated_at timestamptz not null default now()
 );
 
 create table if not exists public.order_status_history(
-  id uuid primary key default gen_random_uuid(),
-  order_id uuid not null references public.orders(id) on delete cascade,
-  from_status text,
-  to_status text not null,
-  changed_by uuid references public.profiles(id),
-  note text,
+  id uuid primary key default gen_random_uuid(), order_id uuid not null references public.orders(id) on delete cascade,
+  from_status text, to_status text not null, changed_by uuid references public.profiles(id), note text,
   created_at timestamptz not null default now()
 );
 
@@ -41,11 +30,11 @@ alter table public.audit_logs add column if not exists old_data jsonb;
 alter table public.audit_logs add column if not exists new_data jsonb;
 
 insert into public.marketplace_categories(slug,name,name_ar,name_en,sort_order,allowed_roles,fields) values
-('restaurant','چێشتخانە','مطعم','Food',10,array['restaurant'], '[{"key":"restaurant","label":"Restaurant","type":"text","required":true},{"key":"food_name","label":"Food name","type":"text","required":true},{"key":"ingredients","label":"Ingredients","type":"textarea"},{"key":"preparation_time","label":"Preparation minutes","type":"number"}]'::jsonb),
-('supermarket','سوپەرمارکێت','سوبرماركت','Supermarket',20,array['supermarket'], '[{"key":"brand","label":"Brand","type":"text"},{"key":"unit","label":"Unit","type":"select","options":["Piece","Kg","Liter","Pack"]},{"key":"quantity","label":"Quantity","type":"number"},{"key":"expiry_date","label":"Expiry date","type":"date"}]'::jsonb),
-('fashion','جل و بەرگ','أزياء','Clothing',30,array['fashion'], '[{"key":"gender","label":"Gender","type":"select","options":["Men","Women","Kids","Unisex"],"required":true},{"key":"size","label":"Size","type":"multi"},{"key":"colors","label":"Colors","type":"multi"},{"key":"brand","label":"Brand","type":"text"},{"key":"material","label":"Material","type":"text"}]'::jsonb),
-('beauty','جوانکاری','تجميل','Beauty',40,array['beauty'], '[{"key":"brand","label":"Brand","type":"text"},{"key":"beauty_category","label":"Beauty type","type":"select","options":["Makeup","Skincare","Haircare","Perfume"],"required":true},{"key":"skin_type","label":"Skin type","type":"select"},{"key":"shade","label":"Shade","type":"text"},{"key":"size_volume","label":"Volume","type":"text"},{"key":"expiry_date","label":"Expiry date","type":"date"}]'::jsonb),
-('car_dealer','ئۆتۆمبێل','سيارات','Cars',50,array['car_dealer','customer'], '[{"key":"make","label":"Brand","type":"text","required":true},{"key":"model","label":"Model","type":"text","required":true},{"key":"model_year","label":"Year","type":"number","required":true},{"key":"fuel","label":"Fuel","type":"select"},{"key":"transmission","label":"Transmission","type":"select"},{"key":"drive_type","label":"Drive type","type":"select"},{"key":"engine_size","label":"Engine","type":"text"},{"key":"horsepower","label":"Horsepower","type":"number"},{"key":"mileage","label":"Mileage","type":"number"},{"key":"features","label":"Features","type":"multi"},{"key":"location","label":"Location","type":"text","required":true}]'::jsonb)
+('restaurant','چێشتخانە','مطعم','Food',10,array['restaurant'],'[{"key":"restaurant","label":"Restaurant","type":"text","required":true},{"key":"food_name","label":"Food name","type":"text","required":true}]'::jsonb),
+('supermarket','سوپەرمارکێت','سوبرماركت','Supermarket',20,array['supermarket'],'[{"key":"brand","label":"Brand","type":"text"},{"key":"unit","label":"Unit","type":"select"},{"key":"quantity","label":"Quantity","type":"number"}]'::jsonb),
+('fashion','جل و بەرگ','أزياء','Clothing',30,array['fashion'],'[{"key":"gender","label":"Gender","type":"select","required":true},{"key":"size","label":"Size","type":"multi"},{"key":"colors","label":"Colors","type":"multi"}]'::jsonb),
+('beauty','جوانکاری','تجميل','Beauty',40,array['beauty'],'[{"key":"brand","label":"Brand","type":"text"},{"key":"beauty_category","label":"Beauty type","type":"select","required":true},{"key":"expiry_date","label":"Expiry date","type":"date"}]'::jsonb),
+('car_dealer','ئۆتۆمبێل','سيارات','Cars',50,array['car_dealer','customer'],'[{"key":"make","label":"Brand","type":"text","required":true},{"key":"model","label":"Model","type":"text","required":true},{"key":"model_year","label":"Year","type":"number","required":true},{"key":"fuel","label":"Fuel","type":"select"},{"key":"transmission","label":"Transmission","type":"select"},{"key":"mileage","label":"Mileage","type":"number"},{"key":"location","label":"Location","type":"text","required":true}]'::jsonb)
 on conflict (slug) do nothing;
 
 create index if not exists marketplace_categories_active_sort_idx on public.marketplace_categories(active,sort_order);
@@ -72,8 +61,7 @@ create policy "shakh audit immutable update" on public.audit_logs for update usi
 create policy "shakh audit immutable delete" on public.audit_logs for delete using (false);
 
 create or replace function public.admin_change_user_role(target_user uuid,new_role public.app_role)
-returns public.profiles
-language plpgsql security definer set search_path=public
+returns public.profiles language plpgsql security definer set search_path=public
 as $$
 declare result public.profiles; before_data jsonb;
 begin
@@ -81,20 +69,19 @@ begin
   select to_jsonb(p) into before_data from public.profiles p where p.id=target_user;
   update public.profiles set role=new_role where id=target_user returning * into result;
   if not found then raise exception 'Profile not found'; end if;
-  insert into public.audit_logs(actor_id,actor_role,action,resource_type,resource_id,old_data,new_data,metadata)
-  values(auth.uid(),public.current_user_role()::text,'role_changed','profile',target_user,before_data,to_jsonb(result),'{}'::jsonb);
+  insert into public.audit_logs(actor_id,actor_role,action,resource_type,resource_id,old_data,new_data)
+  values(auth.uid(),public.current_user_role()::text,'role_changed','profile',target_user,before_data,to_jsonb(result));
   return result;
 end;
 $$;
 
 create or replace function public.admin_set_order_status(target_order uuid,new_status text,note_text text default null)
-returns public.orders
-language plpgsql security definer set search_path=public
+returns public.orders language plpgsql security definer set search_path=public
 as $$
 declare result public.orders; old_status text;
 begin
   if not public.has_permission('manage_orders') then raise exception 'Order management permission required'; end if;
-  if new_status not in ('pending','accepted','preparing','out_for_delivery','delivered','cancelled','ready','assigned','picked_up','on_the_way') then raise exception 'Invalid order status'; end if;
+  if new_status not in ('pending','accepted','preparing','ready','assigned','picked_up','on_the_way','out_for_delivery','delivered','cancelled') then raise exception 'Invalid order status'; end if;
   select status::text into old_status from public.orders where id=target_order;
   update public.orders set status=new_status::public.order_status where id=target_order returning * into result;
   if not found then raise exception 'Order not found'; end if;
@@ -102,14 +89,11 @@ begin
   insert into public.audit_logs(actor_id,actor_role,action,resource_type,resource_id,old_data,new_data,metadata)
   values(auth.uid(),public.current_user_role()::text,'order_updated','order',target_order,jsonb_build_object('status',old_status),jsonb_build_object('status',new_status),jsonb_build_object('note',note_text));
   return result;
-exception when invalid_text_representation then
-+  raise exception 'Database order_status enum does not support this status. Add the enum value in a separate committed migration first.';
 end;
 $$;
 
 create or replace function public.admin_moderate_post(target_post uuid,new_status text)
-returns public.posts
-language plpgsql security definer set search_path=public
+returns public.posts language plpgsql security definer set search_path=public
 as $$
 declare result public.posts; before_data jsonb;
 begin
@@ -130,7 +114,6 @@ revoke all on function public.admin_moderate_post(uuid,text) from public;
 grant execute on function public.admin_change_user_role(uuid,public.app_role) to authenticated;
 grant execute on function public.admin_set_order_status(uuid,text,text) to authenticated;
 grant execute on function public.admin_moderate_post(uuid,text) to authenticated;
-
 grant select on public.marketplace_categories,public.order_status_history to authenticated,anon;
 grant select on public.audit_logs to authenticated;
 
