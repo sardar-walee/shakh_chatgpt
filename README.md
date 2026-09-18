@@ -76,11 +76,11 @@ The web app is installable as a PWA. On supported browsers it shows an install p
 ```bash
 git init
 git add .
-git diff --cached --quiet || git commit -m "SHAKH SUPER v3.0.0"
+git diff --cached --quiet || git commit -m "SHAKH SUPER v3.1.0"
 git branch -M main
 
 # Replace this with your real GitHub repository URL.
-REPO_URL="https://github.com/YOUR_USERNAME/YOUR_REPOSITORY.git"
+REPO_URL="https://github.com/sardar-walee/shakh_chatgpt.git"
 if git remote get-url origin >/dev/null 2>&1; then
    git remote set-url origin "$REPO_URL"
 else
