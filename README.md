@@ -76,10 +76,23 @@ The web app is installable as a PWA. On supported browsers it shows an install p
 ```bash
 git init
 git add .
-git commit -m "SHAKH  SUPERv3.0.0"
-git remote add origin YOUR_GITHUB_REPOSITORY_URL 
-git branch -Mgit push -u origin main
+git diff --cached --quiet || git commit -m "SHAKH SUPER v3.0.0"
+git branch -M main
+
+# Replace this with your real GitHub repository URL.
+REPO_URL="https://github.com/YOUR_USERNAME/YOUR_REPOSITORY.git"
+if git remote get-url origin >/dev/null 2>&1; then
+   git remote set-url origin "$REPO_URL"
+else
+   git remote add origin "$REPO_URL"
+fi
+
+# Enable the automatic doctor check before every push.
+git config core.hooksPath .githooks
+git push -u origin main
 ```
+
+The pre-push hook runs `npm run doctor -- --notify` automatically. To run the full Supabase and Auth checks manually, use `npm run doctor -- --all --notify` after setting the real `.env` values and optional `DOCTOR_WEBHOOK_URL`.
 
 ## Vercel
 - Import the GitHub repository.

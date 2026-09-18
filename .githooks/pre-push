@@ -1,0 +1,5 @@
+#!/bin/sh
+set -eu
+
+printf '%s\n' "Running SHAKH SUPER project doctor before push..."
+npm run doctor -- --notify
