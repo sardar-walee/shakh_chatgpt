@@ -7,6 +7,7 @@
 - [ ] Run `supabase/legacy_compatibility.sql` for the previous database tables
 - [ ] Run `supabase/production_repair.sql` once for final Auth, RLS, Storage, and Realtime repair
 - [ ] Run `supabase/platform_services.sql` for Storage and Realtime
+- [ ] Run `supabase/super_admin_production.sql` for admin categories, order history, immutable audit reads, and audited admin RPCs
 - [ ] Use verified Auth; the frontend does not publish posts without a signed-in user
 - [ ] Confirm the auth trigger creates a `profiles` row
 - [ ] Set trusted users' roles in `profiles`
@@ -24,4 +25,5 @@
 - [ ] Add Storage bucket for product images
 - [x] Add server-side authorization with role-based RLS policies
 - [ ] Add order status transitions and captain assignment
+- [ ] Verify Super Admin Console Users, Posts, Orders, Categories, Audit Logs, and Settings against the production Supabase project
 - [ ] Add real wallet ledger and settlement reports

@@ -48,6 +48,8 @@ npm run doctor -- --all --notify        # run every check, beep on failure, and 
 
 The smoke test reads `DOCTOR_TEST_EMAIL` and `DOCTOR_TEST_PASSWORD` from `.env`; the values are never printed. The webhook is optional and receives only the check names that failed.
 
+The Super Admin implementation audit and remaining production work are tracked in [SUPER_ADMIN_AUDIT.md](SUPER_ADMIN_AUDIT.md).
+
 ## Supabase Auth and recovery setup
 1. Open your Supabase project.
 2. Go to Authentication → Providers and enable Email and Google.
@@ -56,7 +58,7 @@ The smoke test reads `DOCTOR_TEST_EMAIL` and `DOCTOR_TEST_PASSWORD` from `.env`;
 5. Add the redirect URLs for signup, login, and password recovery, for example:
    - `http://localhost:5173/**`
    - `https://YOUR_DOMAIN/**`
-6. In SQL Editor, run the database migrations in order: `supabase/schema.sql`, `supabase/v3_enum_fix.sql`, `supabase/v2_migration.sql`, `supabase/v3_migration.sql`, `supabase/rbac_wallet_migration.sql`, `supabase/post_category_attributes.sql`, `supabase/legacy_compatibility.sql`, `supabase/production_repair.sql`, `supabase/platform_services.sql`.
+6. In SQL Editor, run the database migrations in order: `supabase/schema.sql`, `supabase/v3_enum_fix.sql`, `supabase/v2_migration.sql`, `supabase/v3_migration.sql`, `supabase/rbac_wallet_migration.sql`, `supabase/post_category_attributes.sql`, `supabase/legacy_compatibility.sql`, `supabase/production_repair.sql`, `supabase/platform_services.sql`, `supabase/super_admin_production.sql`. Let enum migrations commit before dependent migrations.
 7. Run `supabase/rbac_wallet_migration.sql` before using Wallet or payout controls. It adds immutable ledger metadata, wallet accounts, payout requests, listing moderation fields, and role-specific RLS policies. Financial ledger writes must be performed by a trusted backend or service role, never from the browser.
 8. Copy the public keys into `.env`:
 ```env
@@ -74,10 +76,9 @@ The web app is installable as a PWA. On supported browsers it shows an install p
 ```bash
 git init
 git add .
-git commit -m "SHAKH  SUPERv2.7.0"
-git branch -M main
-git remote add origin YOUR_GITHUB_REPOSITORY_URL
-git push -u origin main
+git commit -m "SHAKH  SUPERv2.8.0"
+git remote add origin YOUR_GITHUB_REPOSITORY_URL 
+git branch -Mgit push -u origin main
 ```
 
 ## Vercel

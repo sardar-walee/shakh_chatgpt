@@ -3,6 +3,7 @@ import {createRoot} from "react-dom/client";
 import {ShoppingCart, Search, UserRound, Bike, Store, Utensils, Shirt, Sparkles, CarFront, ShieldCheck, Plus, Trash2, LayoutDashboard, Wallet, Package, Languages, Menu, X} from "lucide-react";
 import {isSupabaseConfigured, supabase} from "./lib/supabase";
 import {mapConfig} from "./lib/platform";
+import AdminConsole from "./components/AdminConsole";
 import "./styles.css";
 
 type Role="super_admin"|"admin"|"captain"|"restaurant"|"supermarket"|"fashion"|"beauty"|"car_dealer"|"customer";
@@ -312,7 +313,8 @@ function Post({form,setForm,save,t}:{form:any;setForm:any;save:()=>void;t:(a:str
   <button className="primary" onClick={save}><Plus/> {form.id?t("پاشەکەوتکردنی گۆڕانکاری","حفظ التعديلات","Save changes"):t("پۆستکردن","نشر","Publish")}</button>
  </div></div>
 }
-function Dashboard({products,role,t}:{products:Product[];role:Role;setRole:any;t:(a:string,b:string,c:string)=>string}){
+function Dashboard({products,role,t}:{products:Product[];role:Role;setRole:any;t:(a:string,b:string,c:string)=>string}){return <AdminConsole productsCount={products.length} role={role} t={t}/>}
+function LegacyDashboard({products,role,t}:{products:Product[];role:Role;setRole:any;t:(a:string,b:string,c:string)=>string}){
  if(role!=="admin"&&role!=="super_admin")return <AccessDenied t={t}/>;
  const permissions=[
   ["manage_users","بەڕێوەبردنی بەکارهێنەران","إدارة المستخدمين","Manage users"],
