@@ -37,6 +37,17 @@ npm run doctor
 
 It checks TypeScript and the production build, then prints likely causes and next steps for common dependency, type, environment, and Supabase permission errors. `npm run typecheck` runs only the TypeScript check. The doctor does not rewrite application code automatically, because an incorrect fix could damage authorization or data.
 
+Available diagnostics:
+
+```bash
+npm run doctor -- --fix                 # install dependencies, then retry failed checks
+npm run doctor -- --supabase            # check the public Supabase REST endpoints and RLS response
+npm run doctor -- --smoke               # test Auth login, profile access, and active-post access
+npm run doctor -- --all --notify        # run every check, beep on failure, and use DOCTOR_WEBHOOK_URL if configured
+```
+
+The smoke test reads `DOCTOR_TEST_EMAIL` and `DOCTOR_TEST_PASSWORD` from `.env`; the values are never printed. The webhook is optional and receives only the check names that failed.
+
 ## Supabase Auth and recovery setup
 1. Open your Supabase project.
 2. Go to Authentication → Providers and enable Email and Google.
@@ -63,7 +74,7 @@ The web app is installable as a PWA. On supported browsers it shows an install p
 ```bash
 git init
 git add .
-git commit -m "SHAKH  SUPERv2.6.0"
+git commit -m "SHAKH  SUPERv2.7.0"
 git branch -M main
 git remote add origin YOUR_GITHUB_REPOSITORY_URL
 git push -u origin main

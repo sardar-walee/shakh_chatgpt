@@ -62,6 +62,8 @@ function App(){
  const [walletLoading,setWalletLoading]=useState(false);
  const [userId,setUserId]=useState<string|null>(null);
  const [profile,setProfile]=useState<UserProfile|null>(null);
+ const [profileBusy,setProfileBusy]=useState(false);
+ const [profileMessage,setProfileMessage]=useState("");
  const [loading,setLoading]=useState(isSupabaseConfigured);
  const [authMode,setAuthMode]=useState<"login"|"signup"|"forgot"|"reset">("login");
  const [authEmail,setAuthEmail]=useState("");
@@ -81,6 +83,7 @@ function App(){
   if(!supabase)return;
   const {data}=supabase.auth.onAuthStateChange(event=>{
    if(event==="PASSWORD_RECOVERY"){setAuthMode("reset");setTab("auth");setAuthMessage("")}
+    if(event==="SIGNED_IN")void loadData().then(()=>setTab("profile"));
   });
   return()=>{data.subscription.unsubscribe()};
  },[]);
@@ -149,7 +152,7 @@ function App(){
       setAuthMessage(readableAuthError(result.error,t));setAuthBusy(false);return;
     }
     if(authMode==="signup"&&!result.data.session){setAuthMessage(t("ئیمەیڵەکەت پشتڕاست بکەرەوە، پاشان بچۆ ژوورەوە","تحقق من بريدك الإلكتروني ثم سجل الدخول","Check your email, then sign in"));}
-    else {setAuthMessage("");await loadData();setTab("home");}
+    else {setAuthMessage("");await loadData();setTab("profile");}
     setAuthBusy(false);
  }
  async function handleGoogleSignIn(){
@@ -194,6 +197,14 @@ function App(){
     setAuthBusy(false);
    }
  async function signOut(){if(supabase)await supabase.auth.signOut();setUserId(null);setProfile(null);setRole("customer");setTab("home");}
+ async function updateProfile(fullName:string,phone:string){
+  if(!supabase||!profile)return;
+  setProfileBusy(true);setProfileMessage("");
+  const {error}=await supabase.from("profiles").update({full_name:fullName.trim(),phone:phone.trim()}).eq("id",profile.id);
+  if(error)setProfileMessage(error.message);
+  else {setProfile({...profile,full_name:fullName.trim()||profile.full_name,phone:phone.trim()});setProfileMessage(t("پرۆفایلەکە نوێکرایەوە","تم تحديث الملف الشخصي","Profile updated"));}
+  setProfileBusy(false);
+ }
  async function installApp(){if(!installPrompt)return;await installPrompt.prompt();setInstallPrompt(null);}
  function refreshApp(){navigator.serviceWorker?.controller?.postMessage({type:"SKIP_WAITING"});window.location.reload();}
  const visible=useMemo(()=>{
@@ -237,6 +248,7 @@ function App(){
  const canManagePosts=role==="admin"||role==="super_admin";
  const canManageDashboard=canManagePosts;
  const canUseWallet=Boolean(userId);
+ if(tab==="profile"&&profile)return <Profile profile={profile} busy={profileBusy} message={profileMessage} save={updateProfile} signOut={signOut} t={t}/>;
  async function togglePostStatus(product:Product){
   if(!supabase||!userId||(product.ownerId!==userId&&!canManagePosts)){setNotice(t("دەسەڵاتت نییە بۆ ئەم کردارە","لا تملك صلاحية هذا الإجراء","You are not allowed to perform this action"));return;}
   const nextStatus=product.status==="active"?"blocked":"active";
@@ -280,6 +292,11 @@ function App(){
  </div>
 }
 function Auth({mode,setMode,email,setEmail,password,setPassword,name,setName,busy,message,submit,t,googleSignIn}:{mode:"login"|"signup"|"forgot"|"reset";setMode:React.Dispatch<React.SetStateAction<"login"|"signup"|"forgot"|"reset">>;email:string;setEmail:React.Dispatch<React.SetStateAction<string>>;password:string;setPassword:React.Dispatch<React.SetStateAction<string>>;name:string;setName:React.Dispatch<React.SetStateAction<string>>;busy:boolean;message:string;submit:()=>void;t:(a:string,b:string,c:string)=>string;googleSignIn:()=>void}){const [confirmPassword,setConfirmPassword]=useState("");const [localMessage,setLocalMessage]=useState("");const recovery=mode==="forgot"||mode==="reset";const title=mode==="login"?t("بەخێربێیتەوە","مرحباً بعودتك","Welcome back"):mode==="signup"?t("هەژمارێکی نوێ دروست بکە","أنشئ حساباً جديداً","Create your account"):mode==="forgot"?t("وشەی نهێنیت لەبیرچووە؟","نسيت كلمة المرور؟","Forgot your password?"):t("وشەی نهێنی نوێ دابنێ","أنشئ كلمة مرور جديدة","Create a new password");const submitForm=()=>{if(mode==="reset"&&password!==confirmPassword){setLocalMessage(t("وشە نهێنییەکان یەکسان نین","كلمتا المرور غير متطابقتين","Passwords do not match"));return;}setLocalMessage("");submit()};return <div className="auth-panel"><div className="auth-intro"><div className="auth-orbit">S</div><span>SHAKH SUPER</span><h2>{title}</h2><p>{recovery?t("ئێمە یارمەتیت دەدەین بۆ گەڕاندنەوەی دەستگەیشتن بە هەژمارەکەت.","سنساعدك على استعادة الوصول إلى حسابك.","We will help you get back into your account."):t("بازاڕەکەت بە ئارامی بەڕێوە ببە.","أدر سوقك بسهولة.","Your marketplace, made simple.")}</p></div><div className="auth-form"><div className="auth-kicker">{mode==="signup"?t("بەشداربوون","انضم إلينا","Join us"):mode==="login"?t("چوونەژوورەوەی پارێزراو","دخول آمن","Secure sign in"):t("پاراستنی هەژمار","حماية الحساب","Account recovery")}</div>{mode==="signup"&&<input placeholder={t("ناوی تەواو","الاسم الكامل","Full name")} value={name} onChange={e=>setName(e.target.value)}/>}<input type="email" autoComplete="email" placeholder={t("ئیمەیڵ","البريد الإلكتروني","Email")} value={email} onChange={e=>setEmail(e.target.value)}/>{mode!=="forgot"&&<input type="password" autoComplete={mode==="login"?"current-password":"new-password"} placeholder={t("وشەی نهێنی","كلمة المرور","Password")} value={password} onChange={e=>setPassword(e.target.value)}/>} {mode==="reset"&&<input type="password" autoComplete="new-password" placeholder={t("دووبارە وشەی نهێنی بنووسە","أعد كتابة كلمة المرور","Confirm password")} value={confirmPassword} onChange={e=>setConfirmPassword(e.target.value)}/>} {mode!=="reset"&&mode!=="forgot"&&<button type="button" className="google-btn" onClick={googleSignIn} disabled={busy}>{t("بە گۆگڵ بچۆ ژوورەوە","تسجيل الدخول عبر Google","Continue with Google")}</button>} {(message||localMessage)&&<p className="auth-message">{localMessage||message}</p>}<button className="primary auth-submit" disabled={busy||!email||(mode!=="forgot"&&!password)} onClick={submitForm}>{busy?t("چاوەڕوان بە...","انتظر...","Please wait..."):mode==="login"?t("چوونەژوورەوە","تسجيل الدخول","Sign in"):mode==="signup"?t("دروستکردنی هەژمار","إنشاء حساب","Create account"):mode==="forgot"?t("ناردنی لینکی گۆڕین","إرسال رابط الاستعادة","Send reset link"):t("نوێکردنەوەی وشەی نهێنی","تحديث كلمة المرور","Update password")}</button><button type="button" className="linkbtn auth-back" onClick={()=>setMode(mode==="login"?"signup":"login")}>{mode==="login"?t("هەژمارت نییە؟ دروستی بکە","ليس لديك حساب؟ أنشئ حساباً","Create an account"):mode==="signup"?t("پێشتر هەژمارت هەیە؟ بچۆ ژوورەوە","لديك حساب؟ سجل الدخول","Already have an account? Sign in"):t("گەڕانەوە بۆ چوونەژوورەوە","العودة لتسجيل الدخول","Back to sign in")}</button>{mode==="login"&&<button type="button" className="forgot-link" onClick={()=>{setMode("forgot");setLocalMessage("")}}>{t("وشەی نهێنیت لەبیرچووە؟","نسيت كلمة المرور؟","Forgot password?")}</button>}</div></div>}function Cart({cart,setCart,money,t,checkout}:{cart:Product[];setCart:React.Dispatch<React.SetStateAction<Product[]>>;money:(n:number)=>string;t:(a:string,b:string,c:string)=>string;checkout:()=>void}){const total=cart.reduce((s,p)=>s+p.price,0);return <div className="panel"><h2>{t("سەبەتەی کڕین","سلة التسوق","Shopping cart")}</h2>{cart.length===0?<p>{t("سەبەتەکە بەتاڵە","السلة فارغة","Your cart is empty")}</p>:<>{cart.map((p,i)=><div className="cartrow" key={`${p.id}-${i}`}><span>{p.emoji} {p.name}</span><b>{money(p.price)}</b><button onClick={()=>setCart(c=>c.filter((_,j)=>j!==i))}><Trash2 size={16}/></button></div>)}<div className="total">{t("کۆی گشتی","المجموع","Total")} <b>{money(total)}</b></div><button className="primary" onClick={checkout}>{t("داواکاری بە کاش لە کاتی گەیاندن","الدفع نقداً عند الاستلام","Cash on delivery")} ✓</button></>}</div>}
+function Profile({profile,busy,message,save,signOut,t}:{profile:UserProfile;busy:boolean;message:string;save:(fullName:string,phone:string)=>void;signOut:()=>void;t:(a:string,b:string,c:string)=>string}){
+ const [fullName,setFullName]=useState(profile.full_name);
+ const [phone,setPhone]=useState(profile.phone);
+ return <div className="profile-page"><div className="profile-hero"><div className="profile-large-avatar"><UserRound size={34}/></div><div><p className="profile-eyebrow">SHAKH SUPER</p><h2>{t("بەخێربێیتەوە","مرحباً","Welcome")}, {profile.full_name}</h2><p>{t("پرۆفایلی بەکارهێنەر","الملف الشخصي للمستخدم","User profile")}</p></div></div><div className="profile-grid"><section className="panel profile-card"><h3>{t("زانیاری هەژمار","معلومات الحساب","Account information")}</h3><label>{t("ناوی تەواو","الاسم الكامل","Full name")}<input value={fullName} onChange={event=>setFullName(event.target.value)}/></label><label>{t("ژمارەی مۆبایل","رقم الهاتف","Phone number")}<input value={phone} onChange={event=>setPhone(event.target.value)}/></label><label>{t("ئیمەیڵ","البريد الإلكتروني","Email")}<input value={profile.email} readOnly/></label><button className="primary" disabled={busy} onClick={()=>save(fullName,phone)}>{busy?t("چاوەڕوان بە...","جار الحفظ...","Saving..."):t("نوێکردنەوەی پرۆفایل","تحديث الملف الشخصي","Update profile")}</button>{message&&<p className="profile-message">{message}</p>}</section><section className="panel profile-card"><h3>{t("ڕۆڵ و دەسەڵات","الدور والصلاحيات","Role and permissions")}</h3><div className="profile-detail"><span>{t("ڕۆڵ","الدور","Role")}</span><strong>{roleLabel(profile.role,t)}</strong></div><div className="profile-detail"><span>{t("ناسنامەی بەکارهێنەر","معرف المستخدم","User ID")}</span><code>{profile.id}</code></div><div className="profile-role-note">{profile.role==="super_admin"?t("هەموو تایبەتمەندی و دەسەڵاتەکانت چالاکن.","جميع الميزات والصلاحيات مفعلة.","All features and permissions are enabled."):t("تایبەتمەندییەکان بەپێی ڕۆڵی هەژمارەکەت دیاری دەکرێن.","تتحدد الميزات حسب دور حسابك.","Features are determined by your account role.")}</div></section></div><div className="profile-signout"><button className="signout-button" onClick={signOut}>{t("دەرچوون لە هەژمار","تسجيل الخروج","Sign out")}</button></div></div>
+}
 function Post({form,setForm,save,t}:{form:any;setForm:any;save:()=>void;t:(a:string,b:string,c:string)=>string}){
  const fields=categorySchemas[form.category]||[];
  const update=(key:string,value:unknown)=>setForm({...form,attributes:{...form.attributes,[key]:value}});
