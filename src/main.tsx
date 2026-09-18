@@ -1,6 +1,6 @@
 import React, {useEffect, useMemo, useState} from "react";
 import {createRoot} from "react-dom/client";
-import {ShoppingCart, Search, UserRound, Bike, Store, Utensils, Shirt, Sparkles, CarFront, ShieldCheck, Plus, Trash2, LayoutDashboard, Wallet, Package, Languages, Menu, X} from "lucide-react";
+import {ShoppingCart, Search, UserRound, Bike, Store, Utensils, Shirt, Sparkles, CarFront, ShieldCheck, Plus, Trash2, LayoutDashboard, Wallet, Package, Languages, Menu, X, Eye, EyeOff} from "lucide-react";
 import {isSupabaseConfigured, supabase} from "./lib/supabase";
 import {mapConfig} from "./lib/platform";
 import AdminConsole from "./components/AdminConsole";
@@ -84,10 +84,44 @@ function App(){
   if(!supabase)return;
   const {data}=supabase.auth.onAuthStateChange(event=>{
    if(event==="PASSWORD_RECOVERY"){setAuthMode("reset");setTab("auth");setAuthMessage("")}
-    if(event==="SIGNED_IN")void loadData().then(()=>setTab("profile"));
   });
   return()=>{data.subscription.unsubscribe()};
  },[]);
+ useEffect(()=>{
+  if(tab!=="auth")return;
+  const form=document.querySelector<HTMLElement>(".auth-form");
+  if(!form)return;
+  const passwordInputs=Array.from(form.querySelectorAll<HTMLInputElement>("input[type=password]"));
+  const wrappers:HTMLElement[]=[];
+  passwordInputs.forEach(input=>{
+   if(input.parentElement?.classList.contains("password-field"))return;
+   const wrapper=document.createElement("div");
+   wrapper.className="password-field";
+   input.parentElement?.insertBefore(wrapper,input);
+   wrapper.appendChild(input);
+   const toggle=document.createElement("button");
+   toggle.type="button";toggle.className="password-toggle";toggle.textContent="◉";
+   toggle.setAttribute("aria-label","Show or hide password");
+   toggle.addEventListener("click",()=>{const shown=input.type==="text";input.type=shown?"password":"text";toggle.textContent=shown?"◉":"○";});
+   wrapper.appendChild(toggle);wrappers.push(wrapper);
+  });
+  const submitButton=form.querySelector<HTMLButtonElement>(".auth-submit");
+  let terms:HTMLInputElement|null=null;
+  let termsLabel:HTMLLabelElement|null=null;
+  let submitHandler:((event:MouseEvent)=>void)|null=null;
+  if(authMode==="signup"&&submitButton&&!form.querySelector("#auth-terms")){
+   terms=document.createElement("input");terms.type="checkbox";terms.id="auth-terms";terms.required=true;
+   termsLabel=document.createElement("label");termsLabel.className="terms-field";termsLabel.append(terms,document.createTextNode(t("مەرج و یاساکان قبوڵ دەکەم","أوافق على الشروط والأحكام","I accept the terms and conditions")));
+   submitButton.before(termsLabel);
+   submitHandler=event=>{if(!terms?.checked){event.preventDefault();event.stopImmediatePropagation();setAuthMessage(t("پێویستە مەرج و یاساکان قبوڵ بکەیت","يجب الموافقة على الشروط والأحكام","You must accept the terms and conditions"));}};
+   submitButton.addEventListener("click",submitHandler,true);
+  }
+  return()=>{
+   if(submitButton&&submitHandler)submitButton.removeEventListener("click",submitHandler,true);
+   termsLabel?.remove();
+   wrappers.forEach(wrapper=>{const input=wrapper.querySelector("input");if(input)wrapper.replaceWith(input);});
+  };
+ },[tab,authMode,lang]);
  useEffect(()=>{
   const install=(event:Event)=>{event.preventDefault();setInstallPrompt(event)};
   window.addEventListener("beforeinstallprompt",install);
@@ -135,7 +169,9 @@ function App(){
   if(!supabase){setAuthMessage(t("پەیوەندی Supabase ڕێک نەخراوە","لم يتم إعداد اتصال Supabase","Supabase is not configured"));return;}
   if(authMode==="forgot"){await sendReset();return;}
   if(authMode==="reset"){await updatePassword();return;}
-  if(!authEmail||!authPassword){setAuthMessage(t("ئیمەیڵ و وشەی نهێنی پێویستن","البريد الإلكتروني وكلمة المرور مطلوبان","Email and password are required"));return;}
+  if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(authEmail.trim())){setAuthMessage(t("تکایە ئیمەیڵێکی دروست بنووسە","أدخل بريداً إلكترونياً صحيحاً","Enter a valid email address"));return;}
+  if(!authPassword){setAuthMessage(t("وشەی نهێنی پێویستە","كلمة المرور مطلوبة","Password is required"));return;}
+  if(authMode==="signup"&&authPassword.length<8){setAuthMessage(t("وشەی نهێنی دەبێت لانیکەم ٨ پیت بێت","يجب أن تتكون كلمة المرور من 8 أحرف على الأقل","Password must be at least 8 characters"));return;}
   if(authMode==="signup" && !authName.trim()){setAuthMessage(t("ناوی تەواو پێویستە","الاسم الكامل مطلوب","Full name is required"));return;}
     setAuthBusy(true);setAuthMessage("");
     const redirectTo=getAuthRedirectUrl();
@@ -153,7 +189,7 @@ function App(){
       setAuthMessage(readableAuthError(result.error,t));setAuthBusy(false);return;
     }
     if(authMode==="signup"&&!result.data.session){setAuthMessage(t("ئیمەیڵەکەت پشتڕاست بکەرەوە، پاشان بچۆ ژوورەوە","تحقق من بريدك الإلكتروني ثم سجل الدخول","Check your email, then sign in"));}
-    else {setAuthMessage("");await loadData();setTab("profile");}
+    else {setAuthMessage("");await loadData();setTab("home");}
     setAuthBusy(false);
  }
  async function handleGoogleSignIn(){
@@ -189,7 +225,7 @@ function App(){
     }
    async function updatePassword(){
     if(!supabase)return;
-    if(authPassword.length<6){setAuthMessage(t("وشەی نهێنی دەبێت لانیکەم ٦ پیت بێت","يجب أن تتكون كلمة المرور من 6 أحرف على الأقل","Password must be at least 6 characters"));return;}
+    if(authPassword.length<8){setAuthMessage(t("وشەی نهێنی دەبێت لانیکەم ٨ پیت بێت","يجب أن تتكون كلمة المرور من 8 أحرف على الأقل","Password must be at least 8 characters"));return;}
     if(authPassword!==authConfirmPassword){setAuthMessage(t("وشە نهێنییەکان یەکسان نین","كلمتا المرور غير متطابقتين","Passwords do not match"));return;}
     setAuthBusy(true);setAuthMessage("");
     const {error}=await supabase.auth.updateUser({password:authPassword});
