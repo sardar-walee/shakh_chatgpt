@@ -7,6 +7,8 @@ import "./styles.css";
 
 type Role="super_admin"|"admin"|"captain"|"restaurant"|"supermarket"|"fashion"|"beauty"|"car_dealer"|"customer";
 type Product={id:string;name:string;description:string;category:string;price:number;emoji:string;owner:string;ownerId:string|null;status:string;attributes:Record<string,unknown>};
+type UserProfile={id:string;full_name:string;phone:string;role:Role;email:string};
+type WalletTransaction={id:string;type:string;kind?:string;amount:number;status:string;reference_id?:string|null;created_at:string;note?:string|null};
 type Field={key:string;label:string;type:"text"|"number"|"date"|"select"|"multi"|"textarea";required?:boolean;options?:string[];placeholder?:string};
 const roles: {id:Role;ku:string;ar:string;en:string;icon:React.ReactNode}[]=[
 {id:"restaurant",ku:"چێشتخانە",ar:"مطعم",en:"Restaurant",icon:<Utensils/>},
@@ -16,6 +18,13 @@ const roles: {id:Role;ku:string;ar:string;en:string;icon:React.ReactNode}[]=[
 {id:"car_dealer",ku:"ئۆتۆمبێل",ar:"سيارات",en:"Cars",icon:<CarFront/>},
 {id:"captain",ku:"گەیاندن",ar:"توصيل",en:"Delivery",icon:<Bike/>}
 ];
+const merchantRoles: Role[]=["restaurant","supermarket","fashion","beauty","car_dealer"];
+const roleLabel=(role:Role,t:(a:string,b:string,c:string)=>string)=>{
+ const labels:Record<Role,[string,string,string]>={
+  super_admin:["بەڕێوەبەری گشتی","المدير العام","Super admin"],admin:["بەڕێوەبەر","المدير","Admin"],captain:["شۆفێر / گەیاندکار","السائق / المندوب","Driver / Captain"],restaurant:["خاوەنی چێشتخانە","صاحب المطعم","Restaurant merchant"],supermarket:["خاوەنی سوپەرمارکێت","صاحب السوبرماركت","Supermarket merchant"],fashion:["فرۆشیاری جل و بەرگ","بائع الأزياء","Fashion merchant"],beauty:["فرۆشیاری جوانکاری","بائع التجميل","Beauty merchant"],car_dealer:["فرۆشیاری ئۆتۆمبێل","بائع السيارات","Car merchant"],customer:["کڕیار","عميل","Customer"]
+ };
+ return t(...labels[role]);
+};
 const commonSizes=["XS","S","M","L","XL","XXL","XXXL"];
 const shoeSizes=["36","37","38","39","40","41","42","43","44","45","46"];
 const colors=["ڕەش / Black","سپی / White","سور / Red","شین / Blue","سەوز / Green","زەرد / Yellow","پەمەیی / Pink","مۆر / Purple","قاوەیی / Brown","خۆڵەمێشی / Gray","نارنجی / Orange"];
@@ -46,10 +55,13 @@ function App(){
  const [role,setRole]=useState<Role>("customer");
  const [tab,setTab]=useState("home");
  const [search,setSearch]=useState("");
- const [category,setCategory]=useState("all");
+ const [category,setCategory]=useState("restaurant");
  const [cart,setCart]=useState<Product[]>([]);
  const [products,setProducts]=useState<Product[]>([]);
+ const [walletTransactions,setWalletTransactions]=useState<WalletTransaction[]>([]);
+ const [walletLoading,setWalletLoading]=useState(false);
  const [userId,setUserId]=useState<string|null>(null);
+ const [profile,setProfile]=useState<UserProfile|null>(null);
  const [loading,setLoading]=useState(isSupabaseConfigured);
  const [authMode,setAuthMode]=useState<"login"|"signup"|"forgot"|"reset">("login");
  const [authEmail,setAuthEmail]=useState("");
@@ -91,15 +103,29 @@ function App(){
   const {data:sessionData}=await supabase.auth.getSession();
     const session=sessionData.session;
   setUserId(session?.user.id??null);
+  if(!session?.user){setProfile(null);setRole("customer");}
+    if(session?.user.id) await loadWallet(session.user.id);
     if(session?.user.id){
-      const {data:profile}=await supabase.from("profiles").select("role").eq("id",session.user.id).maybeSingle();
-      if(profile?.role&&(roles.some(item=>item.id===profile.role)||profile.role==="super_admin"||profile.role==="admin"))setRole(profile.role as Role);
+      const {data:profileData}=await supabase.from("profiles").select("id,full_name,phone,role").eq("id",session.user.id).maybeSingle();
+      const profileRole=profileData?.role as Role|undefined;
+      if(profileData?.id&&profileRole&&(roles.some(item=>item.id===profileRole)||profileRole==="super_admin"||profileRole==="admin")){
+       setRole(profileRole);
+       setProfile({id:profileData.id,full_name:profileData.full_name||session.user.user_metadata?.full_name||session.user.email?.split("@")[0]||"User",phone:profileData.phone||"",role:profileRole,email:session.user.email||""});
+      }else setProfile({id:session.user.id,full_name:session.user.user_metadata?.full_name||session.user.email?.split("@")[0]||"User",phone:"",role:"customer",email:session.user.email||""});
     }
     const query=supabase.from("posts").select("id,user_id,title,content,category,price,status,image_url,images,attributes,created_at").eq("status","active").order("created_at",{ascending:false});
     const {data,error}=await query;
     if(error){console.error("Supabase posts load error",error);setNotice(error.message)}
     if(!error&&data){setProducts(data.map((post:any)=>({id:post.id,name:post.title,description:post.content||"",category:post.category,price:Number(post.price),emoji:post.image_url||"📦",ownerId:post.user_id||null,owner:"SHAKH SUPER",status:post.status,attributes:{...(post.attributes||{}),images:post.images||[]}})))}
   setLoading(false);
+ }
+ async function loadWallet(currentUserId:string){
+  if(!supabase)return;
+  setWalletLoading(true);
+  const {data,error}=await supabase.from("wallet_transactions").select("id,type,kind,amount,status,reference_id,created_at,note").eq("user_id",currentUserId).order("created_at",{ascending:false});
+  if(error){console.error("Supabase wallet load error",error);setWalletTransactions([])}
+  else setWalletTransactions((data||[]).map((item:any)=>({...item,type:item.type||item.kind||"transaction",amount:Number(item.amount||0)})));
+  setWalletLoading(false);
  }
  async function authenticate(){
   if(!supabase){setAuthMessage(t("پەیوەندی Supabase ڕێک نەخراوە","لم يتم إعداد اتصال Supabase","Supabase is not configured"));return;}
@@ -123,7 +149,7 @@ function App(){
       setAuthMessage(readableAuthError(result.error,t));setAuthBusy(false);return;
     }
     if(authMode==="signup"&&!result.data.session){setAuthMessage(t("ئیمەیڵەکەت پشتڕاست بکەرەوە، پاشان بچۆ ژوورەوە","تحقق من بريدك الإلكتروني ثم سجل الدخول","Check your email, then sign in"));}
-    else {setAuthMessage("");await loadData();}
+    else {setAuthMessage("");await loadData();setTab("home");}
     setAuthBusy(false);
  }
  async function handleGoogleSignIn(){
@@ -167,10 +193,19 @@ function App(){
     else {setAuthMode("login");setAuthPassword("");setAuthConfirmPassword("");setAuthMessage(t("وشەی نهێنی نوێ کرایەوە. ئێستا دەتوانیت بچیتە ژوورەوە.","تم تحديث كلمة المرور. يمكنك تسجيل الدخول الآن.","Password updated. You can sign in now."));}
     setAuthBusy(false);
    }
- async function signOut(){if(supabase)await supabase.auth.signOut();setUserId(null);setRole("customer");}
+ async function signOut(){if(supabase)await supabase.auth.signOut();setUserId(null);setProfile(null);setRole("customer");setTab("home");}
  async function installApp(){if(!installPrompt)return;await installPrompt.prompt();setInstallPrompt(null);}
  function refreshApp(){navigator.serviceWorker?.controller?.postMessage({type:"SKIP_WAITING"});window.location.reload();}
- const visible=useMemo(()=>products.filter(p=>(category==="all"||p.category===category)&&`${p.name} ${p.owner}`.toLowerCase().includes(search.toLowerCase())&&p.status==="active"),[products,category,search]);
+ const visible=useMemo(()=>{
+  const term=search.trim().toLocaleLowerCase();
+  return products.filter(p=>{
+   if(category!=="all"&&p.category!==category)return false;
+   if(p.status!=="active")return false;
+   if(!term)return true;
+   const searchable=[p.name,p.description,p.category,p.owner,...Object.values(p.attributes).flatMap(value=>Array.isArray(value)?value:[value])].join(" ").toLocaleLowerCase();
+   return searchable.includes(term);
+  });
+ },[products,category,search]);
  const money=(n:number)=>new Intl.NumberFormat("en-US").format(n)+" د.ع";
  async function savePost(){
   const fields=categorySchemas[form.category]||[];
@@ -198,22 +233,39 @@ function App(){
   }
   setCart([]);setNotice(t("داواکارییەکەت تۆمار کرا","تم تسجيل طلبك","Order placed"));
  }
- const canPost=role!=="customer";
+ const canPost=merchantRoles.includes(role)||role==="admin"||role==="super_admin"||role==="customer";
+ const canManagePosts=role==="admin"||role==="super_admin";
+ const canManageDashboard=canManagePosts;
+ const canUseWallet=Boolean(userId);
+ async function togglePostStatus(product:Product){
+  if(!supabase||!userId||(product.ownerId!==userId&&!canManagePosts)){setNotice(t("دەسەڵاتت نییە بۆ ئەم کردارە","لا تملك صلاحية هذا الإجراء","You are not allowed to perform this action"));return;}
+  const nextStatus=product.status==="active"?"blocked":"active";
+  const {error}=await supabase.from("posts").update({status:nextStatus}).eq("id",product.id);
+  if(error){setNotice(error.message);return;}
+  await loadData();
+ }
+ async function requestPayout(amount:number){
+  if(!supabase||!userId||!amount||amount<=0){setNotice(t("بڕی دروست بنووسە","أدخل مبلغاً صحيحاً","Enter a valid amount"));return;}
+  const {error}=await supabase.from("wallet_payout_requests").insert({user_id:userId,amount});
+  if(error){setNotice(error.message);return;}
+  setNotice(t("داواکارییەکەت نێردرا بۆ پشکنینی بەڕێوەبەر","تم إرسال طلب السحب للمراجعة","Withdrawal request submitted for review"));
+ }
  return <div className="app">
   <header className="topbar">
    <button className="iconbtn mobile" onClick={()=>setShowMenu(!showMenu)}>{showMenu?<X/>:<Menu/>}</button>
    <div className="brand" onClick={()=>{setTab("home");setCategory("all")}}><div className="brandmark">S</div><div><b>SHAKH <span>SUPER</span></b><small>{t("هەموو شتێک لە یەک شوێن","كل ما تحتاجه في مكان واحد","Everything in one place")}</small></div></div>
    <div className="search"><Search size={18}/><input placeholder={t("گەڕان بۆ کالا، چێشتخانە، ئۆتۆمبێل...","ابحث عن منتج أو سيارة...","Search products, restaurants, cars...")} value={search} onChange={e=>setSearch(e.target.value)}/></div>
-    <div className="actions"><button className="lang" onClick={()=>setLang(lang==="ku"?"ar":lang==="ar"?"en":"ku")}><Languages size={17}/>{lang.toUpperCase()}</button><button className="cart" onClick={()=>setTab("cart")}><ShoppingCart size={19}/><span>{cart.length}</span></button>{userId?<button className="avatar" onClick={signOut} title={t("چوونەدەرەوە","تسجيل الخروج","Sign out")}><UserRound size={19}/></button>:<button className="avatar" onClick={()=>setTab("auth")} title={t("چوونەژوورەوە","تسجيل الدخول","Sign in")}><UserRound size={19}/></button>}</div>
-  </header>
+    <div className="actions"><button className="lang" onClick={()=>setLang(lang==="ku"?"ar":lang==="ar"?"en":"ku")}><Languages size={17}/>{lang.toUpperCase()}</button><button className="cart" onClick={()=>setTab("cart")}><ShoppingCart size={19}/><span>{cart.length}</span></button>{userId?<button className="avatar" onClick={()=>setTab("profile")} title={t("پرۆفایل","الملف الشخصي","Profile")}><UserRound size={19}/></button>:<button className="avatar" onClick={()=>setTab("auth")} title={t("چوونەژوورەوە","تسجيل الدخول","Sign in")}><UserRound size={19}/></button>}</div>
+    {profile&&<div className="user-profile"><div className="profile-avatar"><UserRound size={17}/></div><div><strong>{t("بەخێربێیتەوە","مرحباً","Welcome")}, {profile.full_name}</strong><small>{profile.email} · {roleLabel(profile.role,t)}</small></div></div>}
+    </header>
   <div className={"layout "+(showMenu?"open":"")}>
    <aside className="sidebar">
     <div className="side-title">{t("بەشەکان","الأقسام","Categories")}</div>
     <button className={category==="all"?"active":""} onClick={()=>{setCategory("all");setTab("home")}}>{<LayoutDashboard/>}{t("هەموو بەشەکان","كل الأقسام","All categories")}</button>
     {roles.map(r=><button key={r.id} className={category===r.id?"active":""} onClick={()=>{setCategory(r.id);setTab("home");setShowMenu(false)}}>{r.icon}<span>{t(r.ku,r.ar,r.en)}</span></button>)}
     <div className="side-title">{t("بەڕێوەبردن","الإدارة","Management")}</div>
-    <button onClick={()=>setTab("dashboard")}><ShieldCheck/>{t("داشبۆرد","لوحة التحكم","Dashboard")}</button>
-    <button onClick={()=>setTab("wallet")}><Wallet/>{t("پارە و مامەڵەکان","المحفظة والمعاملات","Wallet")}</button>
+    {canManageDashboard&&<button onClick={()=>setTab("dashboard")}><ShieldCheck/>{t("داشبۆرد","لوحة التحكم","Dashboard")}</button>}
+    {canUseWallet&&<button onClick={()=>setTab("wallet")}><Wallet/>{t("جزدان و مامەڵەکان","المحفظة والمعاملات","Wallet")}</button>}
     {canPost&&<button onClick={()=>setTab("post")}><Plus/>{t("پۆستی نوێ","منشور جديد","New post")}</button>}
    </aside>
   <main className="main">
@@ -243,6 +295,22 @@ function Post({form,setForm,save,t}:{form:any;setForm:any;save:()=>void;t:(a:str
   <button className="primary" onClick={save}><Plus/> {form.id?t("پاشەکەوتکردنی گۆڕانکاری","حفظ التعديلات","Save changes"):t("پۆستکردن","نشر","Publish")}</button>
  </div></div>
 }
-function Dashboard({products,t}:{products:Product[];role:Role;setRole:any;t:(a:string,b:string,c:string)=>string}){return <div className="panel"><h2>{t("داشبۆردی بەڕێوەبردن","لوحة التحكم","Management dashboard")}</h2><div className="stats"><div><Package/><b>{products.length}</b><span>{t("پۆستەکانی بارکراو","المنشورات المحملة","Loaded posts")}</span></div></div><p>{t("دەسەڵات و داتا لە Supabase و RLS ـەوە کۆنترۆڵ دەکرێن.","الصلاحيات والبيانات تدار عبر Supabase و RLS.","Permissions and data are controlled by Supabase and RLS.")}</p></div>}
-function WalletView({t}:{money:(n:number)=>string;t:(a:string,b:string,c:string)=>string}){return <div className="panel"><h2>{t("پارە و مامەڵەکان","المحفظة والمعاملات","Wallet & transactions")}</h2><p>{t("باڵانس و مامەڵەکان لە Supabase ـەوە پیشان دەدرێن کاتێک wallet API ـەکە چالاک بکرێت.","سيتم عرض الرصيد والمعاملات من Supabase بعد تفعيل واجهة المحفظة.","Wallet balances and transactions will be read from Supabase when the wallet API is enabled.")}</p></div>}
+function Dashboard({products,role,t}:{products:Product[];role:Role;setRole:any;t:(a:string,b:string,c:string)=>string}){
+ if(role!=="admin"&&role!=="super_admin")return <AccessDenied t={t}/>;
+ const permissions=[
+  ["manage_users","بەڕێوەبردنی بەکارهێنەران","إدارة المستخدمين","Manage users"],
+  ["manage_posts","بەڕێوەبردنی هەموو پۆستەکان","إدارة جميع المنشورات","Manage all posts"],
+  ["create_posts","درووستکردنی پۆست","إنشاء المنشورات","Create posts"],
+  ["manage_assigned_sections","بەڕێوەبردنی بەشەکان","إدارة الأقسام","Manage sections"],
+  ["manage_orders","بەڕێوەبردنی داواکارییەکان","إدارة الطلبات","Manage orders"],
+  ["create_orders","درووستکردنی داواکاری","إنشاء الطلبات","Create orders"],
+  ["manage_wallet","بەڕێوەبردنی جزدان و پارە","إدارة المحفظة والأموال","Manage wallet and funds"],
+  ["manage_payouts","پشکنینی داواکارییەکانی پارەدانەوە","مراجعة طلبات السحب","Review payout requests"],
+  ["manage_settings","گۆڕینی ڕێکخستنەکانی پلاتفۆرم","تعديل إعدادات المنصة","Manage platform settings"],
+  ["view_audit_logs","بینینی تۆماری چاودێری","عرض سجل التدقيق","View audit logs"],
+  ["manage_permissions","بەڕێوەبردنی دەسەڵاتەکان","إدارة الصلاحيات","Manage permissions"]
+ ] as const;
+ return <div className="panel"><div className="section-head"><div><h2>{t("داشبۆردی بەڕێوەبردن","لوحة التحكم","Management dashboard")}</h2><p>{roleLabel(role,t)}</p></div><ShieldCheck/></div><div className="stats"><div><Package/><b>{products.length}</b><span>{t("پۆستەکانی بارکراو","المنشورات المحملة","Loaded posts")}</span></div><div><ShieldCheck/><b>{role==="super_admin"?"*":permissions.length}</b><span>{t("دەسەڵاتەکان","الصلاحيات","Permissions")}</span></div></div>{role==="super_admin"&&<div className="admin-banner"><strong>{t("سوپەر ئەدمین: هەموو دەسەڵاتەکان چالاکن","المشرف العام: جميع الصلاحيات مفعلة","Super admin: all permissions enabled")}</strong><span>{t("دەسەڵاتی * واتە دەستگەیشتن بە هەموو بەش و کردارەکانی پلاتفۆرم.","صلاحية * تعني الوصول إلى جميع أقسام وإجراءات المنصة.","The * permission grants access to every platform section and action.")}</span></div>}<div className="permission-list"><h3>{t("لیستی دەسەڵاتەکان","قائمة الصلاحيات","Permission list")}</h3>{permissions.map(([permission,ku,ar,en])=><div className="permission-row" key={permission}><ShieldCheck size={17}/><span>{t(ku,ar,en)}</span><code>{role==="super_admin"?"*":permission}</code></div>)}</div><p>{t("دەسەڵات و داتا لە Supabase و RLS ـەوە کۆنترۆڵ دەکرێن.","الصلاحيات والبيانات تدار عبر Supabase و RLS.","Permissions and data are controlled by Supabase and RLS.")}</p></div>}
+function AccessDenied({t}:{t:(a:string,b:string,c:string)=>string}){return <div className="panel"><h2>{t("دەسەڵاتت نییە","لا تملك الصلاحية","Access denied")}</h2><p>{t("ئەم کردارە بۆ ڕۆڵەکەت ڕێگەپێنەدراوە.","هذا الإجراء غير مسموح لدورك.","This action is not allowed for your role.")}</p></div>}
+function WalletView({role="customer",transactions=[],loading=false,money,requestPayout=async amount=>{if(!supabase)return;const {data}=await supabase.auth.getSession();if(data.session)await supabase.from("wallet_payout_requests").insert({user_id:data.session.user.id,amount});},t}:{role?:Role;transactions?:WalletTransaction[];loading?:boolean;money:(n:number)=>string;requestPayout?:(amount:number)=>void;t:(a:string,b:string,c:string)=>string}){const [amount,setAmount]=useState("");const [localTransactions,setLocalTransactions]=useState<WalletTransaction[]>([]);const [localLoading,setLocalLoading]=useState(false);useEffect(()=>{if(transactions.length||!supabase)return;let mounted=true;setLocalLoading(true);void supabase.from("wallet_transactions").select("id,type,kind,amount,status,reference_id,created_at,note").order("created_at",{ascending:false}).then(({data})=>{if(mounted)setLocalTransactions((data||[]).map((item:any)=>({...item,type:item.type||item.kind||"transaction",amount:Number(item.amount||0)})));if(mounted)setLocalLoading(false)});return()=>{mounted=false}},[transactions.length]);const displayedTransactions=transactions.length?transactions:localTransactions;const displayedLoading=loading||localLoading;const balance=displayedTransactions.reduce((total,item)=>total+item.amount,0);const canRequestPayout=role==="captain"||merchantRoles.includes(role);return <div className="panel"><div className="section-head"><div><h2>{t("جزدان و مامەڵەکان","المحفظة والمعاملات","Wallet & transactions")}</h2><p>{roleLabel(role,t)}</p></div><strong className="price">{money(balance)}</strong></div><div className="stats"><div><Wallet/><b>{money(balance)}</b><span>{t("باڵانسی بەردەست","الرصيد الحالي","Current balance")}</span></div><div><Package/><b>{displayedTransactions.length}</b><span>{t("تۆماری مامەڵەکان","سجل المعاملات","Transaction records")}</span></div></div>{canRequestPayout&&<div className="wallet-action"><input type="number" min="1" placeholder={t("بڕی دەرکردن","مبلغ السحب","Withdrawal amount")} value={amount} onChange={e=>setAmount(e.target.value)}/><button className="primary" onClick={()=>requestPayout(Number(amount))}>{t("داواکاری دەرکردن","طلب سحب","Request withdrawal")}</button></div>}<h3>{t("مێژووی مامەڵەکان","سجل المعاملات","Transaction log")}</h3>{displayedLoading?<p>{t("بارکردن...","جار التحميل...","Loading...")}</p>:displayedTransactions.length===0?<p>{t("هیچ مامەڵەیەک نییە","لا توجد معاملات بعد","No transactions yet")}</p>:<div className="transaction-list">{displayedTransactions.map(item=><div className="transaction" key={item.id}><span><b>{item.type}</b><small>{new Date(item.created_at).toLocaleString()}</small></span><strong className={item.amount<0?"negative":"positive"}>{money(item.amount)}</strong><em>{item.status}</em></div>)}</div>}</div>}
 createRoot(document.getElementById("root")!).render(<App/>);

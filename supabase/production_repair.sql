@@ -332,12 +332,27 @@ using (status = 'active' or auth.uid()::text = user_id::text or public.has_permi
 
 create policy "shakh posts permitted insert"
 on public.posts for insert
-with check (auth.uid()::text = user_id::text and public.has_permission('create_posts'));
+with check (
+  auth.uid()::text = user_id::text
+  and (
+    public.has_permission('create_posts')
+    or (public.has_permission('create_car_posts') and category = 'car_dealer')
+  )
+);
 
 create policy "shakh posts owner admin update"
 on public.posts for update
 using (auth.uid()::text = user_id::text or public.has_permission('manage_posts'))
-with check ((auth.uid()::text = user_id::text and public.has_permission('create_posts')) or public.has_permission('manage_posts'));
+with check (
+  public.has_permission('manage_posts')
+  or (
+    auth.uid()::text = user_id::text
+    and (
+      public.has_permission('create_posts')
+      or (public.has_permission('create_car_posts') and category = 'car_dealer')
+    )
+  )
+);
 
 create policy "shakh posts owner admin delete"
 on public.posts for delete

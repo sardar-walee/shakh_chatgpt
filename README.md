@@ -27,6 +27,16 @@ cp .env.example .env
 npm run dev
 ```
 
+## Project doctor
+
+Run the local diagnostic bot before deployment or after a change:
+
+```bash
+npm run doctor
+```
+
+It checks TypeScript and the production build, then prints likely causes and next steps for common dependency, type, environment, and Supabase permission errors. `npm run typecheck` runs only the TypeScript check. The doctor does not rewrite application code automatically, because an incorrect fix could damage authorization or data.
+
 ## Supabase Auth and recovery setup
 1. Open your Supabase project.
 2. Go to Authentication → Providers and enable Email and Google.
@@ -35,8 +45,9 @@ npm run dev
 5. Add the redirect URLs for signup, login, and password recovery, for example:
    - `http://localhost:5173/**`
    - `https://YOUR_DOMAIN/**`
-6. In SQL Editor, run the database migrations in order: `supabase/schema.sql`, `supabase/v3_enum_fix.sql`, `supabase/v2_migration.sql`, `supabase/v3_migration.sql`, `supabase/post_category_attributes.sql`, `supabase/legacy_compatibility.sql`, `supabase/production_repair.sql`, `supabase/platform_services.sql`.
-7. Copy the public keys into `.env`:
+6. In SQL Editor, run the database migrations in order: `supabase/schema.sql`, `supabase/v3_enum_fix.sql`, `supabase/v2_migration.sql`, `supabase/v3_migration.sql`, `supabase/rbac_wallet_migration.sql`, `supabase/post_category_attributes.sql`, `supabase/legacy_compatibility.sql`, `supabase/production_repair.sql`, `supabase/platform_services.sql`.
+7. Run `supabase/rbac_wallet_migration.sql` before using Wallet or payout controls. It adds immutable ledger metadata, wallet accounts, payout requests, listing moderation fields, and role-specific RLS policies. Financial ledger writes must be performed by a trusted backend or service role, never from the browser.
+8. Copy the public keys into `.env`:
 ```env
 VITE_SUPABASE_URL=https://pmsrrsvvhjclvtdpkbmh.supabase.co
 VITE_SUPABASE_ANON_KEY=YOUR_PUBLIC_ANON_KEY
@@ -44,7 +55,7 @@ VITE_SUPABASE_STORAGE_BUCKET=product-images
 VITE_MAP_API_KEY=YOUR_PUBLIC_MAP_API_KEY
 VITE_MAP_STYLE_URL=https://demotiles.maplibre.org/style.json
 ```
-8. Do not put a `service_role` key in frontend code.
+9. Do not put a `service_role` key in frontend code.
 
 The web app is installable as a PWA. On supported browsers it shows an install prompt, listens for live post/order changes through Realtime, and displays a short update message when a new deployment is available.
 
