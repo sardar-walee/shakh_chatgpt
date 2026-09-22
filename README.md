@@ -76,7 +76,7 @@ The web app is installable as a PWA. On supported browsers it shows an install p
 ```bash
 git init
 git add .
-git diff --cached --quiet || git commit -m "SHAKH SUPER v3.2.0"
+git diff --cached --quiet || git commit -m "SHAKH SUPER v4.5.0"
 git branch -M main
 
 # Replace this with your real GitHub repository URL.

@@ -260,7 +260,7 @@ function App(){
  const money=(n:number)=>new Intl.NumberFormat("en-US").format(n)+" د.ع";
  async function savePost(){
   const fields=categorySchemas[form.category]||[];
-  const missing=fields.filter(item=>item.required&&(!form.attributes[item.key]||(Array.isArray(form.attributes[item.key])&&!(form.attributes[item.key] as unknown[]).length))).map(item=>item.label);
+  const missing=fields.filter(item=>item.key!=="restaurant"&&item.required&&(!form.attributes[item.key]||(Array.isArray(form.attributes[item.key])&&!(form.attributes[item.key] as unknown[]).length))).map(item=>item.label);
   if(!form.name||!form.price){setNotice(t("ناو و نرخ پێویستن","الاسم والسعر مطلوبان","Name and price are required"));return;}
   if(missing.length){setNotice(t(`ئەم خانانە پێویستن: ${missing.join(", ")}`,`الحقول المطلوبة: ${missing.join(", ")}`,`Required fields: ${missing.join(", ")}`));return;}
   if(!supabase||!userId){setNotice(t("بۆ پۆستکردن دەبێت هەژمارت هەبێت و بچیتە ژوورەوە","يجب إنشاء حساب وتسجيل الدخول للنشر","Create an account and sign in before publishing"));setTab("auth");return;}
@@ -393,7 +393,7 @@ function Post({form,setForm,save,allowedCategories,t}:{form:any;setForm:any;save
     <section className="post-card">
      <div className="post-section-head"><div className="post-step">01</div><div><h3>{t("زانیاری سەرەکی","المعلومات الأساسية","Basic information")}</h3><p>{t("ناو، نرخ و بەشی پۆستەکە دیاری بکە.","حدد الاسم والسعر والقسم.","Set the name, price and category.")}</p></div></div>
      <div className="post-grid two">
-      <label className="post-field post-field-wide"><span className="post-field-label">{t("ناوی بەرهەم","اسم المنتج","Product name")}<em>*</em></span><input required value={form.name} onChange={e=>setForm({...form,name:e.target.value})} placeholder={t("بۆ نموونە: بریانی تایبەت","مثال: برياني خاص","e.g. Signature biryani")}/></label>
+      <label className="post-field post-field-wide"><span className="post-field-label">{t("ناوی بەرهەم","اسم المنتج","Product name")}<em>*</em></span><input required value={form.name} onChange={e=>setForm({...form,name:e.target.value,attributes:form.category==="restaurant"?{...form.attributes,food_name:e.target.value}:form.attributes})} placeholder={t("بۆ نموونە: بریانی تایبەت","مثال: برياني خاص","e.g. Signature biryani")}/></label>
       <label className="post-field"><span className="post-field-label">{t("نرخ","السعر","Price")}<em>*</em></span><div className="input-with-suffix"><input required type="number" min="0" value={form.price} onChange={e=>setForm({...form,price:e.target.value})}/><span>د.ع</span></div></label>
       <label className="post-field"><span className="post-field-label">{t("بەش","القسم","Category")}<em>*</em></span><select value={form.category} onChange={e=>setForm({...form,category:e.target.value,attributes:{}})}>{roles.filter(r=>allowedCategories.includes(r.id)).map(r=><option value={r.id} key={r.id}>{t(r.ku,r.ar,r.en)}</option>)}</select></label>
       <label className="post-field post-field-wide"><span className="post-field-label">{t("وەسف","الوصف","Description")}</span><textarea rows={4} value={form.description} onChange={e=>setForm({...form,description:e.target.value})} placeholder={t("کورتەیەک لەسەر بەرهەم، خزمەت یان تایبەتمەندییەکە بنووسە...","اكتب وصفاً مختصراً عن المنتج أو الخدمة...","Write a short description about the product or service...")}/></label>
@@ -403,7 +403,7 @@ function Post({form,setForm,save,allowedCategories,t}:{form:any;setForm:any;save
     <section className="post-card">
      <div className="post-section-head"><div className="post-step">02</div><div><h3>{t("تایبەتمەندییەکانی بەش","خصائص القسم","Category details")}</h3><p>{selectedRole?t(selectedRole.ku,selectedRole.ar,selectedRole.en):""} · {t("تایبەتمەندییە پەیوەندیدارەکان لێرە پڕبکەرەوە.","أكمل التفاصيل الخاصة بهذا القسم.","Complete the details specific to this category.")}</p></div></div>
      <div className="category-pill">{selectedRole?.icon}<span>{selectedRole?t(selectedRole.ku,selectedRole.ar,selectedRole.en):""}</span></div>
-    <div className="post-grid two">{fields.filter(item=>item.key!=="video_url").map(renderField)}</div>
+    <div className="post-grid two">{fields.filter(item=>item.key!=="video_url"&&item.key!=="restaurant").map(renderField)}</div>
     </section>
 
     <section className="post-card">
