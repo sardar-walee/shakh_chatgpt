@@ -22,7 +22,10 @@ function loadEnv(){
 
 function runCheck({command,args}){
   return new Promise(resolve=>{
-    const child=spawn(command,args,{stdio:["ignore","pipe","pipe"]});
+    const isWindows=process.platform==="win32";
+    const executable=isWindows?(process.env.ComSpec||"cmd.exe"):command;
+    const childArgs=isWindows?["/d","/s","/c",[command,...args].join(" ")]:args;
+    const child=spawn(executable,childArgs,{stdio:["ignore","pipe","pipe"]});
     let output="";
     child.stdout.on("data",chunk=>{output+=chunk});
     child.stderr.on("data",chunk=>{output+=chunk});

@@ -58,7 +58,7 @@ The Super Admin implementation audit and remaining production work are tracked i
 5. Add the redirect URLs for signup, login, and password recovery, for example:
    - `http://localhost:5173/**`
    - `https://YOUR_DOMAIN/**`
-6. In SQL Editor, run the database migrations in order: `supabase/schema.sql`, `supabase/v3_enum_fix.sql`, `supabase/v2_migration.sql`, `supabase/v3_migration.sql`, `supabase/rbac_wallet_migration.sql`, `supabase/post_category_attributes.sql`, `supabase/legacy_compatibility.sql`, `supabase/production_repair.sql`, `supabase/platform_services.sql`, `supabase/super_admin_production.sql`. Let enum migrations commit before dependent migrations.
+6. In SQL Editor, run the database migrations in order: `supabase/schema.sql`, `supabase/v3_enum_fix.sql`, `supabase/v2_migration.sql`, `supabase/v3_migration.sql`, `supabase/rbac_wallet_migration.sql`, `supabase/post_category_attributes.sql`, `supabase/legacy_compatibility.sql`, `supabase/production_repair.sql`, `supabase/platform_services.sql`, `supabase/super_admin_production.sql`, `supabase/role_post_scope.sql`. Let enum migrations commit before dependent migrations.
 7. Run `supabase/rbac_wallet_migration.sql` before using Wallet or payout controls. It adds immutable ledger metadata, wallet accounts, payout requests, listing moderation fields, and role-specific RLS policies. Financial ledger writes must be performed by a trusted backend or service role, never from the browser.
 8. Copy the public keys into `.env`:
 ```env

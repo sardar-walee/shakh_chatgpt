@@ -114,7 +114,13 @@ Operational requirements:
 
 ## 4. Architecture & Coding Standards
 
-### State and authorization rules
+### Role-scoped posting
+- Merchants can create posts only in their own category.
+- Customers can create only car-sale posts.
+- Admin and super admin can create posts across all marketplace categories.
+- The frontend hides the posting action until authentication; the database RLS remains the authoritative enforcement layer.
+
+## State and authorization rules
 
 - `main.tsx` is currently the application composition root. Preserve its existing public behavior when extracting components; move one cohesive concern at a time and keep the same Supabase contracts.
 - Keep server state in Supabase. Do not treat the React `role` selector as authorization: it changes the displayed role/dashboard only. Real access control must be enforced by database RLS and Auth claims/profile state.
