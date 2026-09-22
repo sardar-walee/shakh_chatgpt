@@ -1,0 +1,9 @@
+insert into public.profiles (id, full_name, phone, role)
+select
+  u.id,
+  coalesce(nullif(trim(u.raw_user_meta_data->>'full_name'), ''), 'New customer'),
+  coalesce(u.phone, ''),
+  'customer'::public.app_role
+from auth.users u
+left join public.profiles p on p.id = u.id
+where p.id is null;

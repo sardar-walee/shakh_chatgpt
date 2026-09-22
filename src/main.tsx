@@ -343,17 +343,79 @@ function Profile({profile,busy,message,save,signOut,t}:{profile:UserProfile;busy
 function Post({form,setForm,save,allowedCategories,t}:{form:any;setForm:any;save:()=>void;allowedCategories:Role[];t:(a:string,b:string,c:string)=>string}){
  const fields=categorySchemas[form.category]||[];
  const update=(key:string,value:unknown)=>setForm({...form,attributes:{...form.attributes,[key]:value}});
- return <div className="panel"><h2>{t(form.id?"دەستکاری پۆست":"پۆستی نوێ زیاد بکە",form.id?"تعديل المنشور":"إضافة منشور جديد",form.id?"Edit post":"Create new post")}</h2><div className="form">
-  <label>{t("زانیاری سەرەکی","المعلومات الأساسية","Basic information")}</label>
-  <input required placeholder={t("ناوی بەرهەم","اسم المنتج","Product name")} value={form.name} onChange={e=>setForm({...form,name:e.target.value})}/>
-  <input required type="number" min="0" placeholder={t("نرخ بە دینار","السعر بالدينار","Price in IQD")} value={form.price} onChange={e=>setForm({...form,price:e.target.value})}/>
-  <select value={form.category} onChange={e=>setForm({...form,category:e.target.value,attributes:{}})}>{roles.filter(r=>allowedCategories.includes(r.id)).map(r=><option value={r.id} key={r.id}>{t(r.ku,r.ar,r.en)}</option>)}</select>
-  <textarea placeholder={t("وەسف","الوصف","Description")} value={form.description} onChange={e=>setForm({...form,description:e.target.value})}/>
-  <label>{t("تایبەتمەندییەکانی ئەم بەشە","خصائص هذا القسم","Category-specific fields")}</label>
-  {fields.map(item=><label key={item.key}>{item.label}{item.required&&" *"}{item.type==="select"?<select value={String(form.attributes[item.key]||"")} onChange={e=>update(item.key,e.target.value)}><option value="">{t("هەڵبژێرە","اختر","Select")}</option>{item.options?.map(option=><option key={option}>{option}</option>)}</select>:item.type==="multi"?<select multiple value={Array.isArray(form.attributes[item.key])?form.attributes[item.key] as string[]:[]} onChange={e=>update(item.key,Array.from(e.target.selectedOptions).map(option=>option.value))}>{item.options?.map(option=><option key={option}>{option}</option>)}</select>:item.type==="textarea"?<textarea value={String(form.attributes[item.key]||"")} onChange={e=>update(item.key,e.target.value)}/>:<input type={item.type} value={String(form.attributes[item.key]||"")} onChange={e=>update(item.key,e.target.value)}/>}</label>)}
-  <label>{t("وێنەکان (هەر دێڕێک یەک لینک، تا ٨)","الصور (رابط في كل سطر، حتى 8)","Images (one URL per line, up to 8)")}<textarea value={form.images} onChange={e=>setForm({...form,images:e.target.value})}/></label>
-  <button className="primary" onClick={save}><Plus/> {form.id?t("پاشەکەوتکردنی گۆڕانکاری","حفظ التعديلات","Save changes"):t("پۆستکردن","نشر","Publish")}</button>
- </div></div>
+ const selectedRole=roles.find(r=>r.id===form.category);
+ const images=String(form.images||"").split(/[\n,]/).map((item:string)=>item.trim()).filter(Boolean).slice(0,8);
+ const fieldValue=(key:string)=>form.attributes?.[key];
+ const renderField=(item:Field)=>{
+  const value=fieldValue(item.key);
+  return <label className={`post-field ${item.type==='textarea'?'post-field-wide':''}`} key={item.key}>
+   <span className="post-field-label">{item.label}{item.required&&<em>*</em>}</span>
+   {item.type==="select"?<select value={String(value||"")} onChange={e=>update(item.key,e.target.value)}><option value="">{t("هەڵبژێرە","اختر","Select")}</option>{item.options?.map(option=><option key={option}>{option}</option>)}</select>
+    :item.type==="multi"?<select multiple className="post-multi" value={Array.isArray(value)?value as string[]:[]} onChange={e=>update(item.key,Array.from(e.target.selectedOptions).map(option=>option.value))}>{item.options?.map(option=><option key={option}>{option}</option>)}</select>
+    :item.type==="textarea"?<textarea rows={4} value={String(value||"")} onChange={e=>update(item.key,e.target.value)} placeholder={t("زانیارییەکان بنووسە...","أدخل التفاصيل...","Enter details...")}/>
+    :<input type={item.type} value={String(value||"")} onChange={e=>update(item.key,e.target.value)} placeholder={item.placeholder||""}/>} 
+  </label>;
+ };
+ return <div className="post-editor">
+  <div className="post-editor-hero">
+   <div>
+    <div className="post-kicker">SHAKH SUPER · SELLER STUDIO</div>
+    <h2>{t(form.id?"دەستکاری پۆست":"پۆستی نوێ زیاد بکە",form.id?"تعديل المنشور":"إضافة منشور جديد",form.id?"Edit post":"Create new post")}</h2>
+    <p>{t("پۆستێکی جوان و تەواو دروست بکە و بەکارهێنەر بە یەکەم نیگاکە سەرنجی پێبدە.","أنشئ منشوراً احترافياً واجذب انتباه العملاء من النظرة الأولى.","Create a polished listing designed to capture attention from the first glance.")}</p>
+   </div>
+   <div className="post-hero-mark">✦</div>
+  </div>
+
+  <div className="post-layout">
+   <div className="post-form-column">
+    <section className="post-card">
+     <div className="post-section-head"><div className="post-step">01</div><div><h3>{t("زانیاری سەرەکی","المعلومات الأساسية","Basic information")}</h3><p>{t("ناو، نرخ و بەشی پۆستەکە دیاری بکە.","حدد الاسم والسعر والقسم.","Set the name, price and category.")}</p></div></div>
+     <div className="post-grid two">
+      <label className="post-field post-field-wide"><span className="post-field-label">{t("ناوی بەرهەم","اسم المنتج","Product name")}<em>*</em></span><input required value={form.name} onChange={e=>setForm({...form,name:e.target.value})} placeholder={t("بۆ نموونە: بریانی تایبەت","مثال: برياني خاص","e.g. Signature biryani")}/></label>
+      <label className="post-field"><span className="post-field-label">{t("نرخ","السعر","Price")}<em>*</em></span><div className="input-with-suffix"><input required type="number" min="0" value={form.price} onChange={e=>setForm({...form,price:e.target.value})}/><span>د.ع</span></div></label>
+      <label className="post-field"><span className="post-field-label">{t("بەش","القسم","Category")}<em>*</em></span><select value={form.category} onChange={e=>setForm({...form,category:e.target.value,attributes:{}})}>{roles.filter(r=>allowedCategories.includes(r.id)).map(r=><option value={r.id} key={r.id}>{t(r.ku,r.ar,r.en)}</option>)}</select></label>
+      <label className="post-field post-field-wide"><span className="post-field-label">{t("وەسف","الوصف","Description")}</span><textarea rows={4} value={form.description} onChange={e=>setForm({...form,description:e.target.value})} placeholder={t("کورتەیەک لەسەر بەرهەم، خزمەت یان تایبەتمەندییەکە بنووسە...","اكتب وصفاً مختصراً عن المنتج أو الخدمة...","Write a short description about the product or service...")}/></label>
+     </div>
+    </section>
+
+    <section className="post-card">
+     <div className="post-section-head"><div className="post-step">02</div><div><h3>{t("تایبەتمەندییەکانی بەش","خصائص القسم","Category details")}</h3><p>{selectedRole?t(selectedRole.ku,selectedRole.ar,selectedRole.en):""} · {t("تایبەتمەندییە پەیوەندیدارەکان لێرە پڕبکەرەوە.","أكمل التفاصيل الخاصة بهذا القسم.","Complete the details specific to this category.")}</p></div></div>
+     <div className="category-pill">{selectedRole?.icon}<span>{selectedRole?t(selectedRole.ku,selectedRole.ar,selectedRole.en):""}</span></div>
+     <div className="post-grid two">{fields.map(renderField)}</div>
+    </section>
+
+    <section className="post-card">
+     <div className="post-section-head"><div className="post-step">03</div><div><h3>{t("وێنە و ڤیدیۆ","الصور والفيديو","Media")}</h3><p>{t("وێنەکان پۆستەکەت زیاتر سەرنجڕاکێش دەکەن.","الصور تجعل منشورك أكثر جاذبية.","Visuals make your listing more engaging.")}</p></div></div>
+     <label className="post-field"><span className="post-field-label">{t("لینکی وێنەکان","روابط الصور","Image URLs")}<small> · {t("تا ٨ وێنە","حتى 8 صور","Up to 8 images")}</small></span><textarea rows={5} value={form.images} onChange={e=>setForm({...form,images:e.target.value})} placeholder={t("هەر دێڕێک یەک لینک...","رابط واحد في كل سطر...","One URL per line...")}/></label>
+     {images.length>0&&<div className="image-preview-grid">{images.map((url:string,index:number)=><div className="image-preview" key={`${url}-${index}`}><img src={url} alt="" onError={e=>{e.currentTarget.style.display="none"}}/><span>{index+1}</span></div>)}</div>}
+     <div className="post-media-divider"/>
+     <label className="post-field"><span className="post-field-label">{t("لینکی ڤیدیۆ","رابط الفيديو","Video URL")}</span><input value={String(fieldValue("video_url")||"")} onChange={e=>update("video_url",e.target.value)} placeholder="https://..."/></label>
+    </section>
+
+    <div className="post-actions-bar">
+      <button className="post-publish" type="button" onClick={save}><Plus size={18}/>{form.id?t("پاشەکەوتکردنی گۆڕانکاری","حفظ التعديلات","Save changes"):t("پۆستکردن","نشر المنشور","Publish post")}</button>
+    </div>
+   </div>
+
+   <aside className="post-preview-column">
+    <div className="preview-sticky">
+     <div className="preview-heading"><div><span>{t("پێشبینین","معاينة","Preview")}</span><h3>{t("پۆستی تۆ","منشورك","Your listing")}</h3></div><Eye size={18}/></div>
+     <article className="live-post-card">
+      <div className="live-post-image">{images[0]?<img src={images[0]} alt="" onError={e=>{e.currentTarget.style.display="none"}}/>:<div className="live-placeholder">{selectedRole?.icon||"✦"}<span>{t("وێنەی پۆست","صورة المنشور","Post image")}</span></div>}<span className="live-badge">{t("نوێ","جديد","NEW")}</span></div>
+      <div className="live-post-body">
+       <div className="live-meta"><span>{selectedRole?t(selectedRole.ku,selectedRole.ar,selectedRole.en):"SHAKH SUPER"}</span><span>SHAKH SUPER</span></div>
+       <h4>{form.name||t("ناوی بەرهەمەکەت","اسم المنتج","Your product name")}</h4>
+       <p>{form.description||t("وەسفی پۆستەکەت لێرە پیشان دەدرێت...","سيظهر وصف منشورك هنا...","Your listing description will appear here...")}</p>
+       <div className="live-price">{form.price?`${new Intl.NumberFormat("en-US").format(Number(form.price))} د.ع`:"0 د.ع"}</div>
+       <div className="live-tags">{fieldValue("availability")&&<span>{String(fieldValue("availability"))}</span>}{fieldValue("condition")&&<span>{String(fieldValue("condition"))}</span>}{fieldValue("discount")&&<span>{String(fieldValue("discount"))}% {t("داشکاندن","خصم","off")}</span>}</div>
+       <button type="button" className="live-cta">{t("زیادکردن بۆ سەبەتە","أضف للسلة","Add to cart")}</button>
+      </div>
+     </article>
+     <div className="preview-tip"><span>✦</span><p>{t("ئەمە تەنها پێشبینینە؛ هیچ داتایەک تا پۆستکردن نەنێردرێت.","هذه معاينة فقط؛ لن يتم إرسال أي بيانات حتى النشر.","This is only a preview. Nothing is submitted until you publish.")}</p></div>
+    </div>
+   </aside>
+  </div>
+ </div>
 }
 function Dashboard({products,role,t}:{products:Product[];role:Role;setRole:any;t:(a:string,b:string,c:string)=>string}){return <AdminConsole productsCount={products.length} role={role} t={t}/>}
 function LegacyDashboard({products,role,t}:{products:Product[];role:Role;setRole:any;t:(a:string,b:string,c:string)=>string}){
