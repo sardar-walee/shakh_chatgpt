@@ -1,8 +1,8 @@
 import React, {useEffect, useMemo, useState} from "react";
 import {createRoot} from "react-dom/client";
-import {ShoppingCart, Search, UserRound, Bike, Store, Utensils, Shirt, Sparkles, CarFront, ShieldCheck, Plus, Trash2, LayoutDashboard, Wallet, Package, Languages, Menu, X, Eye, EyeOff} from "lucide-react";
+import {ShoppingCart, Search, UserRound, Bike, Store, Utensils, Shirt, Sparkles, CarFront, ShieldCheck, Plus, Trash2, LayoutDashboard, Wallet, Package, Languages, Menu, X, Eye, EyeOff, UploadCloud, ImagePlus, Camera} from "lucide-react";
 import {isSupabaseConfigured, supabase} from "./lib/supabase";
-import {mapConfig} from "./lib/platform";
+import {mapConfig, storageBucket} from "./lib/platform";
 import AdminConsole from "./components/AdminConsole";
 import "./styles.css";
 
@@ -342,10 +342,32 @@ function Profile({profile,busy,message,save,signOut,t}:{profile:UserProfile;busy
 }
 function Post({form,setForm,save,allowedCategories,t}:{form:any;setForm:any;save:()=>void;allowedCategories:Role[];t:(a:string,b:string,c:string)=>string}){
  const fields=categorySchemas[form.category]||[];
+ const [uploading,setUploading]=useState(false);
  const update=(key:string,value:unknown)=>setForm({...form,attributes:{...form.attributes,[key]:value}});
  const selectedRole=roles.find(r=>r.id===form.category);
  const images=String(form.images||"").split(/[\n,]/).map((item:string)=>item.trim()).filter(Boolean).slice(0,8);
  const fieldValue=(key:string)=>form.attributes?.[key];
+ const uploadImages=async(event:React.ChangeEvent<HTMLInputElement>)=>{
+  if(!supabase||!event.target.files?.length)return;
+  setUploading(true);
+  try{
+   const {data:sessionData}=await supabase.auth.getSession();
+   const userId=sessionData.session?.user.id;
+   if(!userId)throw new Error(t("تکایە سەرەتا بچۆ ژوورەوە","سجل الدخول أولاً","Please sign in first"));
+   const uploaded:string[]=[];
+   for(const file of Array.from(event.target.files).slice(0,8-images.length)){
+    const extension=file.name.split(".").pop()?.toLowerCase()||"jpg";
+    const path=`${userId}/${crypto.randomUUID()}.${extension}`;
+    const {error}=await supabase.storage.from(storageBucket).upload(path,file,{contentType:file.type||"image/jpeg",upsert:false});
+    if(error)throw error;
+    uploaded.push(supabase.storage.from(storageBucket).getPublicUrl(path).data.publicUrl);
+   }
+   setForm({...form,images:[...images,...uploaded].join("\n")});
+  }catch(error){
+   window.alert(error instanceof Error?error.message:t("بارکردنی وێنە سەرکەوتوو نەبوو","فشل رفع الصور","Image upload failed"));
+  }finally{setUploading(false);event.target.value="";}
+ };
+ const removeImage=(url:string)=>setForm({...form,images:images.filter((item:string)=>item!==url).join("\n")});
  const renderField=(item:Field)=>{
   const value=fieldValue(item.key);
   return <label className={`post-field ${item.type==='textarea'?'post-field-wide':''}`} key={item.key}>
@@ -381,15 +403,14 @@ function Post({form,setForm,save,allowedCategories,t}:{form:any;setForm:any;save
     <section className="post-card">
      <div className="post-section-head"><div className="post-step">02</div><div><h3>{t("تایبەتمەندییەکانی بەش","خصائص القسم","Category details")}</h3><p>{selectedRole?t(selectedRole.ku,selectedRole.ar,selectedRole.en):""} · {t("تایبەتمەندییە پەیوەندیدارەکان لێرە پڕبکەرەوە.","أكمل التفاصيل الخاصة بهذا القسم.","Complete the details specific to this category.")}</p></div></div>
      <div className="category-pill">{selectedRole?.icon}<span>{selectedRole?t(selectedRole.ku,selectedRole.ar,selectedRole.en):""}</span></div>
-     <div className="post-grid two">{fields.map(renderField)}</div>
+    <div className="post-grid two">{fields.filter(item=>item.key!=="video_url").map(renderField)}</div>
     </section>
 
     <section className="post-card">
-     <div className="post-section-head"><div className="post-step">03</div><div><h3>{t("وێنە و ڤیدیۆ","الصور والفيديو","Media")}</h3><p>{t("وێنەکان پۆستەکەت زیاتر سەرنجڕاکێش دەکەن.","الصور تجعل منشورك أكثر جاذبية.","Visuals make your listing more engaging.")}</p></div></div>
-     <label className="post-field"><span className="post-field-label">{t("لینکی وێنەکان","روابط الصور","Image URLs")}<small> · {t("تا ٨ وێنە","حتى 8 صور","Up to 8 images")}</small></span><textarea rows={5} value={form.images} onChange={e=>setForm({...form,images:e.target.value})} placeholder={t("هەر دێڕێک یەک لینک...","رابط واحد في كل سطر...","One URL per line...")}/></label>
-     {images.length>0&&<div className="image-preview-grid">{images.map((url:string,index:number)=><div className="image-preview" key={`${url}-${index}`}><img src={url} alt="" onError={e=>{e.currentTarget.style.display="none"}}/><span>{index+1}</span></div>)}</div>}
-     <div className="post-media-divider"/>
-     <label className="post-field"><span className="post-field-label">{t("لینکی ڤیدیۆ","رابط الفيديو","Video URL")}</span><input value={String(fieldValue("video_url")||"")} onChange={e=>update("video_url",e.target.value)} placeholder="https://..."/></label>
+    <div className="post-section-head"><div className="post-step">03</div><div><h3>{t("وێنەکان","الصور","Images")}</h3><p>{t("وێنەکان لە گەلەری یان کامێرا هەڵبژێرە؛ تا ٨ وێنە.","اختر الصور من المعرض أو الكاميرا؛ حتى 8 صور.","Choose images from your gallery or camera; up to 8 images.")}</p></div><strong className="image-count">{images.length} / 8</strong></div>
+    <div className="image-upload-zone"><UploadCloud size={28}/><strong>{t("وێنەکان هەڵبژێرە","اختر الصور","Choose your images")}</strong><small>{t("PNG و JPG، تا ٨ وێنە","PNG و JPG، حتى 8 صور","PNG and JPG, up to 8 images")}</small><div className="image-upload-actions"><label><ImagePlus size={16}/>{t("لە گەلەری","من المعرض","Gallery")}<input type="file" accept="image/*" multiple onChange={uploadImages} disabled={uploading||images.length>=8}/></label><label><Camera size={16}/>{t("لە کامێرا","من الكاميرا","Camera")}<input type="file" accept="image/*" capture="environment" onChange={uploadImages} disabled={uploading||images.length>=8}/></label></div></div>
+    {uploading&&<p className="image-uploading">{t("وێنەکان بار دەکرێن...","جار رفع الصور...","Uploading images...")}</p>}
+    {images.length>0&&<div className="image-preview-grid">{images.map((url:string,index:number)=><div className="image-preview" key={`${url}-${index}`}><img src={url} alt="" onError={e=>{e.currentTarget.style.display="none"}}/><span>{index+1}</span><button type="button" onClick={()=>removeImage(url)} aria-label={t("سڕینەوەی وێنە","حذف الصورة","Remove image")}><X size={13}/></button></div>)}</div>}
     </section>
 
     <div className="post-actions-bar">
