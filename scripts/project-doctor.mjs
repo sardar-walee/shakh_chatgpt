@@ -1,10 +1,9 @@
 import {spawn} from "node:child_process";
 import {existsSync, readFileSync} from "node:fs";
 
-const npmCommand="npm";
 const checks=[
-  {name:"TypeScript",command:npmCommand,args:["run","typecheck"]},
-  {name:"Production build",command:npmCommand,args:["run","build"]}
+  {name:"TypeScript",command:"npm",args:["run","typecheck"]},
+  {name:"Production build",command:"npm",args:["run","build"]}
 ];
 const args=new Set(process.argv.slice(2));
 const fix=args.has("--fix");
@@ -23,10 +22,7 @@ function loadEnv(){
 
 function runCheck({command,args}){
   return new Promise(resolve=>{
-    const isWindows=process.platform==="win32";
-    const executable=isWindows?(process.env.ComSpec||"cmd.exe"):command;
-    const childArgs=isWindows?["/d","/s","/c",[command,...args].join(" ")]:args;
-    const child=spawn(executable,childArgs,{stdio:["ignore","pipe","pipe"]});
+    const child=spawn(command,args,{stdio:["ignore","pipe","pipe"]});
     let output="";
     child.stdout.on("data",chunk=>{output+=chunk});
     child.stderr.on("data",chunk=>{output+=chunk});
@@ -40,7 +36,7 @@ async function check(name,checkDefinition,{repair=false}={}){
   let result=await runCheck(checkDefinition);
   if(result.code!==0&&repair&&fix){
     process.stdout.write("repairing... ");
-    const install=await runCheck({command:npmCommand,args:["install"]});
+    const install=await runCheck({command:"npm",args:["install"]});
     if(install.code===0)result=await runCheck(checkDefinition);
   }
   if(result.code===0){console.log("OK");return;}

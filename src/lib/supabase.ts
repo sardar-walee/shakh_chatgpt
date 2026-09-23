@@ -1,27 +1,25 @@
 import { createClient } from "@supabase/supabase-js";
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL?.trim();
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY?.trim();
 
-export const isSupabaseConfigured = Boolean(supabaseUrl && supabaseAnonKey);
+const isValidUrl = (url?: string) => {
+  if (!url) return false;
+  try {
+    const parsed = new URL(url);
+    return (parsed.protocol === "http:" || parsed.protocol === "https:") && !url.includes("YOUR_SUPABASE");
+  } catch {
+    return false;
+  }
+};
+
+export const isSupabaseConfigured = Boolean(
+  supabaseUrl && supabaseAnonKey && isValidUrl(supabaseUrl)
+);
+
 export const supabase = isSupabaseConfigured
-  ? createClient(supabaseUrl, supabaseAnonKey, {
+  ? createClient(supabaseUrl!, supabaseAnonKey!, {
       auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true },
     })
   : null;
 
-export async function ensureProfileExists(userId: string, fullName?: string, role?: string) {
-  if (!supabase || !userId) return;
-  try {
-    const { data } = await supabase.from("profiles").select("id").eq("id", userId).maybeSingle();
-    if (!data) {
-      await supabase.from("profiles").upsert({
-        id: userId,
-        full_name: fullName || "User",
-        role: role || "customer"
-      }, { onConflict: "id" });
-    }
-  } catch (err) {
-    console.warn("ensureProfileExists error:", err);
-  }
-}

@@ -1,4 +1,6 @@
 {
-  "name": "SHAX DELIVERY | شاخ بۆ گەیاندن",
-  "description": "Multi-merchant platform & delivery marketplace in Kurdistan & Iraq"
+  "name": "Shakh Super",
+  "description": "Multi-merchant platform and delivery service app for Kurdistan region",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }
