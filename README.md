@@ -54,11 +54,11 @@ The Super Admin implementation audit and remaining production work are tracked i
 1. Open your Supabase project.
 2. Go to Authentication → Providers and enable Email and Google.
 3. For Google, add your app domain and redirect URL to the allowed list. For local development use `http://localhost:5173` and for production use `https://YOUR_DOMAIN`.
-4. In Authentication → URL Configuration, set the site URL to your deployed app origin (or `http://localhost:5173` for local dev).
+4. In Authentication → URL Configuration, set the site URL to your deployed app origin (or `http://daim-post.online` for local dev).
 5. Add the redirect URLs for signup, login, and password recovery, for example:
-   - `http://localhost:5173/**`
-   - `https://YOUR_DOMAIN/**`
-6. In SQL Editor, run the database migrations in order: `supabase/schema.sql`, `supabase/v3_enum_fix.sql`, `supabase/v2_migration.sql`, `supabase/v3_migration.sql`, `supabase/rbac_wallet_migration.sql`, `supabase/post_category_attributes.sql`, `supabase/legacy_compatibility.sql`, `supabase/production_repair.sql`, `supabase/platform_services.sql`, `supabase/super_admin_production.sql`, `supabase/role_post_scope.sql`. Let enum migrations commit before dependent migrations.
+   - `http://daim-post.online/**`
+   - `https://daim-post.online/**`
+6. In SQL Editor, run the database migrations in order: `supabase/schema.sql`, `supabase/v3_enum_fix.sql`, `supabase/v2_migration.sql`, `supabase/v3_migration.sql`, `supabase/rbac_wallet_migration.sql`, `supabase/post_category_attributes.sql`, `supabase/legacy_compatibility.sql`, `supabase/production_repair.sql`, `supabase/platform_services.sql`, `supabase/super_admin_production.sql`, `supabase/role_post_scope.sql`, then `supabase/repair_missing_profiles.sql`. Let enum migrations commit before dependent migrations. The final repair script backfills profiles for existing Auth users and installs the signup trigger required by the `posts.user_id` foreign key.
 7. Run `supabase/rbac_wallet_migration.sql` before using Wallet or payout controls. It adds immutable ledger metadata, wallet accounts, payout requests, listing moderation fields, and role-specific RLS policies. Financial ledger writes must be performed by a trusted backend or service role, never from the browser.
 8. Copy the public keys into `.env`:
 ```env
@@ -76,7 +76,7 @@ The web app is installable as a PWA. On supported browsers it shows an install p
 ```bash
 git init
 git add .
-git diff --cached --quiet || git commit -m "SHAKH SUPER v4.5.0"
+git diff --cached --quiet || git commit -m "SHAKH SUPER v4.6.0"
 git branch -M main
 
 # Replace this with your real GitHub repository URL.

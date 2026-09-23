@@ -39,13 +39,13 @@ begin
     with check (
       auth.uid() = %I
       and (
-        public.current_user_role() in ('super_admin'::public.app_role, 'admin'::public.app_role)
-        or (public.current_user_role() = 'restaurant'::public.app_role and category = 'restaurant'::public.app_role)
-        or (public.current_user_role() = 'supermarket'::public.app_role and category = 'supermarket'::public.app_role)
-        or (public.current_user_role() = 'fashion'::public.app_role and category = 'fashion'::public.app_role)
-        or (public.current_user_role() = 'beauty'::public.app_role and category = 'beauty'::public.app_role)
-        or (public.current_user_role() = 'car_dealer'::public.app_role and category = 'car_dealer'::public.app_role)
-        or (public.current_user_role() = 'customer'::public.app_role and category = 'car_dealer'::public.app_role)
+        public.current_user_role()::text in ('super_admin', 'admin')
+        or (public.current_user_role()::text = 'restaurant' and category::text = 'restaurant')
+        or (public.current_user_role()::text = 'supermarket' and category::text = 'supermarket')
+        or (public.current_user_role()::text = 'fashion' and category::text = 'fashion')
+        or (public.current_user_role()::text = 'beauty' and category::text = 'beauty')
+        or (public.current_user_role()::text = 'car_dealer' and category::text = 'car_dealer')
+        or (public.current_user_role()::text = 'customer' and category::text = 'car_dealer')
       )
     )
   $policy$, owner_column);

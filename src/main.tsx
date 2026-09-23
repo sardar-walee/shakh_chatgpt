@@ -260,13 +260,13 @@ function App(){
  const money=(n:number)=>new Intl.NumberFormat("en-US").format(n)+" د.ع";
  async function savePost(){
   const fields=categorySchemas[form.category]||[];
-  const missing=fields.filter(item=>item.key!=="restaurant"&&item.required&&(!form.attributes[item.key]||(Array.isArray(form.attributes[item.key])&&!(form.attributes[item.key] as unknown[]).length))).map(item=>item.label);
+  const missing=fields.filter(item=>item.required&&(!form.attributes[item.key]||(Array.isArray(form.attributes[item.key])&&!(form.attributes[item.key] as unknown[]).length))).map(item=>item.label);
   if(!form.name||!form.price){setNotice(t("ناو و نرخ پێویستن","الاسم والسعر مطلوبان","Name and price are required"));return;}
   if(missing.length){setNotice(t(`ئەم خانانە پێویستن: ${missing.join(", ")}`,`الحقول المطلوبة: ${missing.join(", ")}`,`Required fields: ${missing.join(", ")}`));return;}
   if(!supabase||!userId){setNotice(t("بۆ پۆستکردن دەبێت هەژمارت هەبێت و بچیتە ژوورەوە","يجب إنشاء حساب وتسجيل الدخول للنشر","Create an account and sign in before publishing"));setTab("auth");return;}
   if(!allowedPostCategories.includes(form.category as Role)){setNotice(t("ئەم بەشە بۆ ڕۆڵی هەژمارەکەت ڕێگەپێدراو نییە","هذا القسم غير مسموح لدور حسابك","This category is not allowed for your account role"));return;}
   const images=form.images.split(/[\n,]/).map(item=>item.trim()).filter(Boolean).slice(0,8);
-  const payload={title:form.name,content:form.description,category:form.category,price:+form.price,image_url:images[0]||form.emoji||null,images,attributes:form.attributes};
+  const payload={title:form.name,content:form.description,category:form.category,price:+form.price,image_url:images[0]||form.emoji||null,images,attributes:form.attributes,status:"active"};
   const request=form.id?supabase.from("posts").update(payload).eq("id",form.id).eq("user_id",userId):supabase.from("posts").insert({...payload,user_id:userId});
   const {error}=await request;
   if(error){console.error("Supabase post save error",{message:error.message,code:error.code,details:error.details,hint:error.hint});setNotice(error.message);return;}
@@ -403,7 +403,7 @@ function Post({form,setForm,save,allowedCategories,t}:{form:any;setForm:any;save
     <section className="post-card">
      <div className="post-section-head"><div className="post-step">02</div><div><h3>{t("تایبەتمەندییەکانی بەش","خصائص القسم","Category details")}</h3><p>{selectedRole?t(selectedRole.ku,selectedRole.ar,selectedRole.en):""} · {t("تایبەتمەندییە پەیوەندیدارەکان لێرە پڕبکەرەوە.","أكمل التفاصيل الخاصة بهذا القسم.","Complete the details specific to this category.")}</p></div></div>
      <div className="category-pill">{selectedRole?.icon}<span>{selectedRole?t(selectedRole.ku,selectedRole.ar,selectedRole.en):""}</span></div>
-    <div className="post-grid two">{fields.filter(item=>item.key!=="video_url"&&item.key!=="restaurant").map(renderField)}</div>
+    <div className="post-grid two">{fields.filter(item=>item.key!=="video_url").map(renderField)}</div>
     </section>
 
     <section className="post-card">
