@@ -390,7 +390,7 @@ function App() {
       } else {
         setAuthMessage("");
         await loadData();
-        setTab("home");
+        setTab("dashboard");
       }
     } catch (err) {
       setAuthMessage(readableAuthError(err, t));
@@ -487,6 +487,10 @@ function App() {
     await ensureProfileExists(userId, profile?.full_name, profile?.role || role);
 
     const images = form.images.split(/[\n,]/).map(item => item.trim()).filter(Boolean).slice(0, 8);
+    const isCarPosting = form.category === "car_dealer";
+    const isAutoApproved = role === "super_admin" || role === "admin";
+    const postStatus = (isCarPosting && !isAutoApproved) ? "pending_approval" : "active";
+
     const payload = {
       title: form.name,
       content: form.description,
@@ -494,8 +498,8 @@ function App() {
       price: +form.price,
       image_url: images[0] || form.emoji || null,
       images,
-      attributes: { ...form.attributes, vendor_name: profile?.full_name || "Merchant" },
-      status: "active"
+      attributes: { ...form.attributes, vendor_name: profile?.full_name || "User", prepaid_fee_required: isCarPosting },
+      status: postStatus
     };
     const isUpdate = Boolean(form.id && !form.id.startsWith("sample-"));
     const request = isUpdate
@@ -503,7 +507,16 @@ function App() {
       : supabase.from("posts").insert({ ...payload, user_id: userId });
     const { error } = await request;
     if (error) { setNotice(error.message); return; }
-    await loadData(); setTab("home"); setNotice(t(isUpdate ? "پۆستەکە نوێکرایەوە" : "پۆستەکە زیاد کرا", isUpdate ? "تم تحديث المنشور" : "تمت إضافة المنشور", isUpdate ? "Post updated" : "Post added")); setForm({ id: "", name: "", price: "", category: "restaurant", description: "", emoji: "📦", images: "", attributes: {} });
+    await loadData();
+    setTab("home");
+
+    if (postStatus === "pending_approval") {
+      setNotice(t("پۆستەکەت بۆ ئۆتۆمبێل بە سەرکەوتوویی تۆمارکرا! دوای وەرگرتنی پارەی پێشەکی، لەلایەن سوپەر ئەدمینەوە پەسەند دەکرێت و بڵاودەکرێتەوە.", "تم تسجيل منشورك بنجاح! بعد استلام المبلغ المسبق، سيتم الموافقة عليه ونشره من قبل السوبر أدمن.", "Listing submitted! After prepaid fee is received, it will be approved & published by Super Admin."));
+    } else {
+      setNotice(t(isUpdate ? "پۆستەکە نوێکرایەوە" : "پۆستەکە زیاد کرا", isUpdate ? "تم تحديث المنشور" : "تمت إضافة المنشور", isUpdate ? "Post updated" : "Post added"));
+    }
+
+    setForm({ id: "", name: "", price: "", category: "restaurant", description: "", emoji: "📦", images: "", attributes: {} });
   }
 
   function editPost(product: Product) { setForm({ id: product.id, name: product.name, price: String(product.price), category: product.category, description: product.description, emoji: product.emoji, images: Array.isArray(product.attributes.images) ? (product.attributes.images as string[]).join("\n") : "", attributes: product.attributes }); setTab("post"); }
@@ -545,10 +558,14 @@ function App() {
     setTab("orders");
   }
 
-  const allowedPostCategories: Role[] = role === "super_admin" || role === "admin" ? ["restaurant", "supermarket", "fashion", "beauty", "car_dealer"] : merchantRoles.includes(role) ? [role] : role === "customer" ? ["car_dealer"] : [];
+  const allowedPostCategories: Role[] = role === "super_admin" || role === "admin"
+    ? ["restaurant", "supermarket", "fashion", "beauty", "car_dealer"]
+    : merchantRoles.includes(role)
+    ? Array.from(new Set<Role>([role, "car_dealer"]))
+    : ["car_dealer"];
   const canPost = Boolean(userId) && allowedPostCategories.length > 0;
   const canManagePosts = role === "admin" || role === "super_admin";
-  const canManageDashboard = canManagePosts;
+  const canManageDashboard = true;
   const canUseWallet = Boolean(userId);
 
   return (
@@ -668,7 +685,17 @@ function App() {
           ) : tab === "post" ? (
             canPost ? <Post form={form} setForm={setForm} save={savePost} allowedCategories={allowedPostCategories} t={t} profile={profile} /> : <Auth mode={authMode} setMode={setAuthMode} email={authEmail} setEmail={setAuthEmail} password={authPassword} setPassword={setAuthPassword} name={authName} setName={setAuthName} busy={authBusy} message={authMessage} submit={authenticate} t={t} googleSignIn={handleGoogleSignIn} />
           ) : tab === "dashboard" ? (
-            <Dashboard products={products} role={role} setRole={setRole} t={t} />
+            <Dashboard
+              products={products}
+              role={role}
+              setRole={setRole}
+              t={t}
+              onNavigatePost={(cat) => {
+                const targetCat = cat || allowedPostCategories[0] || "restaurant";
+                setForm(f => ({ ...f, category: targetCat, attributes: {} }));
+                setTab("post");
+              }}
+            />
           ) : tab === "wallet" ? (
             <WalletView money={money} t={t} role={role} transactions={walletTransactions} loading={walletLoading} />
           ) : (
@@ -1012,6 +1039,16 @@ function Post({ form, setForm, save, allowedCategories, t, profile }: { form: an
 
       <div className="post-layout">
         <div className="post-form-column">
+          {form.category === "car_dealer" && (
+            <div style={{ background: "#fff7ed", border: "1.5px solid #f97316", borderRadius: "12px", padding: "14px 18px", marginBottom: "20px", display: "flex", alignItems: "center", gap: "12px" }}>
+              <DollarSign style={{ color: "#f97316", flexShrink: 0 }} size={24} />
+              <div style={{ fontSize: "13px", color: "#9a3412", lineHeight: "1.5" }}>
+                <strong style={{ display: "block", fontSize: "14px", marginBottom: "2px" }}>{t("پۆستکردنی ئۆتۆمبێل بە پارەی پێشەکی:", "نشر السيارات بدفع مسبق:", "Car Posting Prepaid Fee Notice:")}</strong>
+                {t("هەموو کەسێک دەتوانێت ئۆتۆمبێل پۆست بکات بەڵام بە پارەی پێشەکی. لە پاش ناردنی پۆستەکە و وەرگرتنی پارەکە، ڕێگەپێدان و بڵاوکردنەوە لەلایەن سوپەر ئەدمینەوە ئەنجام دەدرێت.", "يمكن لأي شخص نشر سيارة ولكن بالدفع المسبق. بعد إرسال المنشور واستلام المبلغ المسبق، سيتم الموافقة على النشر من قبل السوبر أدمن.", "Anyone can post a car listing with a prepaid fee. After submission and payment receipt, the Super Admin will approve and publish your listing.")}
+              </div>
+            </div>
+          )}
+
           <section className="post-card">
             <div className="post-section-head">
               <div className="post-step">01</div>
@@ -1140,8 +1177,8 @@ function Post({ form, setForm, save, allowedCategories, t, profile }: { form: an
   );
 }
 
-function Dashboard({ products, role, setRole, t }: { products: Product[]; role: Role; setRole: any; t: (a: string, b: string, c: string) => string }) {
-  return <AdminConsole productsCount={products.length} role={role} t={t} />;
+function Dashboard({ products, role, setRole, t, onNavigatePost }: { products: Product[]; role: Role; setRole: any; t: (a: string, b: string, c: string) => string; onNavigatePost?: (cat?: Role) => void }) {
+  return <AdminConsole productsCount={products.length} role={role} t={t} setRole={setRole} onNavigatePost={onNavigatePost} />;
 }
 
 function WalletView({ money, t, role = "customer", transactions = [], loading = false }: { money: (n: number) => string; t: (a: string, b: string, c: string) => string; role?: Role; transactions?: WalletTransaction[]; loading?: boolean }) {
