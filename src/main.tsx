@@ -3,9 +3,9 @@ import { createRoot } from "react-dom/client";
 import {
   ShoppingCart, Search, UserRound, Bike, Store, Utensils, Shirt, Sparkles, CarFront,
   ShieldCheck, Plus, Trash2, LayoutDashboard, Wallet, Package, Languages, Menu, X,
-  Eye, UploadCloud, ImagePlus, Camera, Home, MapPin, CheckCircle2, Moon, Sun, PlusCircle
+  Eye, UploadCloud, ImagePlus, Camera, Home, MapPin, CheckCircle2, Moon, Sun, PlusCircle, SlidersHorizontal
 } from "lucide-react";
-import { isSupabaseConfigured, supabase } from "./lib/supabase";
+import { isSupabaseConfigured, supabase, ensureProfileExists } from "./lib/supabase";
 import { mapConfig, storageBucket } from "./lib/platform";
 import AdminConsole from "./components/AdminConsole";
 import { OrdersView } from "./components/OrdersView";
@@ -148,10 +148,14 @@ const categorySchemas: Record<string, Field[]> = {
 
 function readableAuthError(error: unknown, t: (a: string, b: string, c: string) => string) {
   const message = typeof error === "object" && error !== null && "message" in error ? String((error as { message?: unknown }).message || "") : String(error || "");
+  const lower = message.toLowerCase();
   if (!message || message === "[object Object]" || message === "{}") return t("هەڵەیەک ڕوویدا. تکایە دواتر هەوڵ بدەرەوە.", "حدث خطأ. حاول مرة أخرى.", "Something went wrong. Please try again.");
-  if (message.toLowerCase().includes("email not confirmed")) return t("ئیمەیڵەکەت پشتڕاست نەکراوەتەوە. inbox و spam ـەکەت بپشکنە.", "لم يتم تأكيد بريدك الإلكتروني. تحقق من inbox و spam.", "Your email is not confirmed. Check your inbox and spam folder.");
-  if (message.toLowerCase().includes("invalid login credentials")) return t("ئیمەیڵ یان وشەی نهێنی هەڵەیە.", "البريد الإلكتروني أو كلمة المرور غير صحيحة.", "The email or password is incorrect.");
-  if (message.toLowerCase().includes("user already registered")) return t("ئەم ئیمەیڵە پێشتر هەژماری هەیە.", "هذا البريد الإلكتروني مسجل مسبقاً.", "This email is already registered.");
+  if (lower.includes("failed to fetch") || lower.includes("fetch failed") || lower.includes("networkerror") || lower.includes("network error")) {
+    return t("پەیوەندی لەگەڵ سێرڤەر بەردەست نییە. تکایە هێڵی ئینتەرنێتەکەت بپشکنە.", "تعذر الاتصال بالخادم. يرجى التحقق من اتصال الإنترنت.", "Unable to connect to server. Please check your internet connection.");
+  }
+  if (lower.includes("email not confirmed")) return t("ئیمەیڵەکەت پشتڕاست نەکراوەتەوە. inbox و spam ـەکەت بپشکنە.", "لم يتم تأكيد بريدك الإلكتروني. تحقق من inbox و spam.", "Your email is not confirmed. Check your inbox and spam folder.");
+  if (lower.includes("invalid login credentials")) return t("ئیمەیڵ یان وشەی نهێنی هەڵەیە.", "البريد الإلكتروني أو كلمة المرور غير صحيحة.", "The email or password is incorrect.");
+  if (lower.includes("user already registered")) return t("ئەم ئیمەیڵە پێشتر هەژماری هەیە.", "هذا البريد الإلكتروني مسجل مسبقاً.", "This email is already registered.");
   return message;
 }
 
@@ -161,14 +165,58 @@ function getAuthRedirectUrl() {
 }
 
 const sampleProducts: Product[] = [
-  { id: "sample-1", name: "کەباب شاندز (Shandiz Kebab)", description: "گۆشتی تازەی بەرخ لەگەڵ برنجی کوردی و سەوزەوات", category: "restaurant", price: 12000, emoji: "🥙", owner: "چێشتخانەی شاندز", ownerId: null, status: "active", attributes: { restaurant: "چێشتخانەی شاندز", preparation_time: 25 } },
-  { id: "sample-2", name: "پیتزا مێکس بێف (Mix Beef Pizza)", description: "پیتزای ئیتاڵی بە پەنیر و گۆشتی گۆڵک", category: "restaurant", price: 10000, emoji: "🍕", owner: "پیتزا هاوس", ownerId: null, status: "active", attributes: { restaurant: "پیتزا هاوس", spicy_level: "Mild" } },
-  { id: "sample-3", name: "شیر کالیبەر ۱ لیتر (Caliber Milk)", description: "شێری تەندروستی پڕ بەها", category: "supermarket", price: 2500, emoji: "🥛", owner: "مارکێتی شاخ", ownerId: null, status: "active", attributes: { product_category: "شیر / Dairy", unit: "دانە / Piece" } },
-  { id: "sample-4", name: "کراسی پیاوان (Men's Shirt)", description: "قوماشی کۆتۆنی بەرز، لە هەموو قەبارەکان بەردەستە", category: "fashion", price: 25000, emoji: "👔", owner: "بوتیکی مۆدا", ownerId: null, status: "active", attributes: { gender: "پیاوان / Men", size: ["M", "L", "XL"] } },
-  { id: "sample-5", name: "سیرۆمی جوانکاری پێست (Skin Serum)", description: "سیرۆمی ڤیتامین C بۆ درەوشانەوە و شێدارکردنەوەی پێست", category: "beauty", price: 18000, emoji: "✨", owner: "سنتر جوانکاری شاخ", ownerId: null, status: "active", attributes: { beauty_category: "Skincare", skin_type: "All" } },
-  { id: "sample-6", name: "تۆیۆتا کامری ۲۰۲۳ (Toyota Camry 2023)", description: "سفر کیلۆمەتر, ڕەنگی سپی, بێ بۆیاخ", category: "car_dealer", price: 24500000, emoji: "🚗", owner: "پیشانگای هەولێر", ownerId: null, status: "active", attributes: { make: "Toyota", model: "Camry", model_year: 2023, condition: "New" } },
-  { id: "sample-7", name: "خزمەتگوزاری گەیاندنی خێرا (Express Captain)", description: "گەیاندنی خێرا لە هەموو شوێنەکانی شاری هەولێر، سلێمانی و دهۆک", category: "captain", price: 3000, emoji: "🛵", owner: "گەیاندنی شاخ", ownerId: null, status: "active", attributes: { vehicle_type: "Motorcycle", availability: "Available" } }
+  { id: "sample-1", name: "کەباب شاندز (Shandiz Kebab)", description: "گۆشتی تازەی بەرخ لەگەڵ برنجی کوردی و سەوزەوات", category: "restaurant", price: 12000, emoji: "🥙", owner: "چێشتخانەی شاندز", ownerId: null, status: "active", attributes: { restaurant: "چێشتخانەی شاندز", preparation_time: 25, images: ["https://images.unsplash.com/photo-1555939594-58d7cb561ad1?w=600&auto=format&fit=crop&q=80"] } },
+  { id: "sample-2", name: "پیتزا مێکس بێف (Mix Beef Pizza)", description: "پیتزای ئیتاڵی بە پەنیر و گۆشتی گۆڵک", category: "restaurant", price: 10000, emoji: "🍕", owner: "پیتزا هاوس", ownerId: null, status: "active", attributes: { restaurant: "پیتزا هاوس", spicy_level: "Mild", images: ["https://images.unsplash.com/photo-1513104890138-7c749659a591?w=600&auto=format&fit=crop&q=80"] } },
+  { id: "sample-3", name: "شیر کالیبەر ۱ لیتر (Caliber Milk)", description: "شێری تەندروستی پڕ بەها", category: "supermarket", price: 2500, emoji: "🥛", owner: "مارکێتی شاخ", ownerId: null, status: "active", attributes: { product_category: "شیر / Dairy", unit: "دانە / Piece", images: ["https://images.unsplash.com/photo-1563636619-e9143da7973b?w=600&auto=format&fit=crop&q=80"] } },
+  { id: "sample-4", name: "کراسی پیاوان (Men's Shirt)", description: "قوماشی کۆتۆنی بەرز، لە هەموو قەبارەکان بەردەستە", category: "fashion", price: 25000, emoji: "👔", owner: "بوتیکی مۆدا", ownerId: null, status: "active", attributes: { gender: "پیاوان / Men", size: ["M", "L", "XL"], images: ["https://images.unsplash.com/photo-1602810318383-e386cc2a3ccf?w=600&auto=format&fit=crop&q=80"] } },
+  { id: "sample-5", name: "سیرۆمی جوانکاری پێست (Skin Serum)", description: "سیرۆمی ڤیتامین C بۆ درەوشانەوە و شێدارکردنەوەی پێست", category: "beauty", price: 18000, emoji: "✨", owner: "سنتر جوانکاری شاخ", ownerId: null, status: "active", attributes: { beauty_category: "Skincare", skin_type: "All", images: ["https://images.unsplash.com/photo-1620916566398-39f1143ab7be?w=600&auto=format&fit=crop&q=80"] } },
+  { id: "sample-6", name: "تۆیۆتا کامری ۲۰۲۳ (Toyota Camry 2023)", description: "سفر کیلۆمەتر, ڕەنگی سپی, بێ بۆیاخ", category: "car_dealer", price: 24500000, emoji: "🚗", owner: "پیشانگای هەولێر", ownerId: null, status: "active", attributes: { make: "Toyota", model: "Camry", model_year: 2023, condition: "New", images: ["https://images.unsplash.com/photo-1621007947382-bb3c3994e3fb?w=600&auto=format&fit=crop&q=80"] } },
+  { id: "sample-7", name: "خزمەتگوزاری گەیاندنی خێرا (Express Captain)", description: "گەیاندنی خێرا لە هەموو شوێنەکانی شاری هەولێر، سلێمانی و دهۆک", category: "captain", price: 3000, emoji: "🛵", owner: "گەیاندنی شاخ", ownerId: null, status: "active", attributes: { vehicle_type: "Motorcycle", availability: "Available", images: ["https://images.unsplash.com/photo-1558981806-ec527fa84c39?w=600&auto=format&fit=crop&q=80"] } }
 ];
+
+function getProductImageUrl(p: Product): string | undefined {
+  if (p.emoji && (p.emoji.startsWith("http://") || p.emoji.startsWith("https://") || p.emoji.startsWith("data:") || p.emoji.startsWith("/"))) {
+    return p.emoji;
+  }
+  const images = p.attributes?.images;
+  if (Array.isArray(images) && typeof images[0] === "string" && images[0]) {
+    return images[0];
+  }
+  if (typeof p.attributes?.image_url === "string" && p.attributes.image_url) {
+    return p.attributes.image_url;
+  }
+  return undefined;
+}
+
+function ProductLazyImage({ src, alt, emoji, badgeText }: { src?: string; alt: string; emoji?: string; badgeText?: React.ReactNode }) {
+  const [loaded, setLoaded] = useState(false);
+  const [error, setError] = useState(false);
+
+  const isImage = Boolean(src && !error && (src.startsWith("http") || src.startsWith("data:") || src.startsWith("/") || src.startsWith("blob:")));
+
+  return (
+    <div className={`product-image-container ${loaded ? "is-loaded" : "is-loading"}`}>
+      <div className="product-image-placeholder">
+        <span className="placeholder-blur-bg" />
+        <span className="placeholder-emoji">{emoji || "📦"}</span>
+      </div>
+
+      {isImage && (
+        <img
+          src={src}
+          alt={alt}
+          loading="lazy"
+          decoding="async"
+          className={`product-img ${loaded ? "loaded" : "blur-loading"}`}
+          onLoad={() => setLoaded(true)}
+          onError={() => setError(true)}
+        />
+      )}
+
+      {badgeText && <span className="badge">{badgeText}</span>}
+    </div>
+  );
+}
 
 function App() {
   const [lang, setLang] = useState<"ku" | "ar" | "en">("ku");
@@ -176,6 +224,7 @@ function App() {
   const [tab, setTab] = useState("home");
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState("all");
+  const [priceRange, setPriceRange] = useState<"all" | "under10k" | "10k-25k" | "above25k">("all");
   const [cart, setCart] = useState<Product[]>([]);
   const [products, setProducts] = useState<Product[]>(sampleProducts);
   const [walletTransactions, setWalletTransactions] = useState<WalletTransaction[]>([]);
@@ -250,6 +299,11 @@ function App() {
       if (!session?.user) { setProfile(null); setRole("customer"); }
       if (session?.user.id) await loadWallet(session.user.id);
       if (session?.user.id) {
+        await ensureProfileExists(
+          session.user.id,
+          session.user.user_metadata?.full_name || session.user.email?.split("@")[0] || "User",
+          "customer"
+        );
         const { data: profileData } = await supabase.from("profiles").select("id,full_name,phone,role").eq("id", session.user.id).maybeSingle().catch(() => ({ data: null }));
         const profileRole = profileData?.role as Role | undefined;
         if (profileData?.id && profileRole && (roles.some(item => item.id === profileRole) || profileRole === "super_admin" || profileRole === "admin")) {
@@ -321,37 +375,58 @@ function App() {
     if (authMode === "signup" && authPassword.length < 8) { setAuthMessage(t("وشەی نهێنی دەبێت لانیکەم ٨ پیت بێت", "يجب أن تتكون كلمة المرور من 8 أحرف على الأقل", "Password must be at least 8 characters")); return; }
     if (authMode === "signup" && !authName.trim()) { setAuthMessage(t("ناوی تەواو پێویستە", "الاسم الكامل مطلوب", "Full name is required")); return; }
     setAuthBusy(true); setAuthMessage("");
-    const redirectTo = getAuthRedirectUrl();
-    const result = authMode === "signup"
-      ? await supabase.auth.signUp({ email: authEmail.trim(), password: authPassword, options: { data: { full_name: authName.trim() || authEmail.split("@")[0] }, emailRedirectTo: redirectTo } })
-      : await supabase.auth.signInWithPassword({ email: authEmail.trim(), password: authPassword });
-    if (result.error) {
-      console.error("Supabase authentication error", result.error);
-      setAuthMessage(readableAuthError(result.error, t)); setAuthBusy(false); return;
+    try {
+      const redirectTo = getAuthRedirectUrl();
+      const result = authMode === "signup"
+        ? await supabase.auth.signUp({ email: authEmail.trim(), password: authPassword, options: { data: { full_name: authName.trim() || authEmail.split("@")[0] }, emailRedirectTo: redirectTo } })
+        : await supabase.auth.signInWithPassword({ email: authEmail.trim(), password: authPassword });
+      if (result.error) {
+        setAuthMessage(readableAuthError(result.error, t));
+        setAuthBusy(false);
+        return;
+      }
+      if (authMode === "signup" && !result.data.session) {
+        setAuthMessage(t("ئیمەیڵەکەت پشتڕاست بکەرەوە، پاشان بچۆ ژوورەوە", "تحقق من بريدك الإلكتروني ثم سجل الدخول", "Check your email, then sign in"));
+      } else {
+        setAuthMessage("");
+        await loadData();
+        setTab("home");
+      }
+    } catch (err) {
+      setAuthMessage(readableAuthError(err, t));
+    } finally {
+      setAuthBusy(false);
     }
-    if (authMode === "signup" && !result.data.session) { setAuthMessage(t("ئیمەیڵەکەت پشتڕاست بکەرەوە، پاشان بچۆ ژوورەوە", "تحقق من بريدك الإلكتروني ثم سجل الدخول", "Check your email, then sign in")); }
-    else { setAuthMessage(""); await loadData(); setTab("home"); }
-    setAuthBusy(false);
   }
 
   async function handleGoogleSignIn() {
     if (!supabase) { setAuthMessage(t("پەیوەندی Supabase ڕێک نەخراوە", "لم يتم إعداد اتصال Supabase", "Supabase is not configured")); return; }
     setAuthBusy(true); setAuthMessage("");
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider: "google",
-      options: { redirectTo: getAuthRedirectUrl(), queryParams: { access_type: "offline", prompt: "consent" } }
-    });
-    if (error) { setAuthMessage(readableAuthError(error, t)); }
-    setAuthBusy(false);
+    try {
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: "google",
+        options: { redirectTo: getAuthRedirectUrl(), queryParams: { access_type: "offline", prompt: "consent" } }
+      });
+      if (error) { setAuthMessage(readableAuthError(error, t)); }
+    } catch (err) {
+      setAuthMessage(readableAuthError(err, t));
+    } finally {
+      setAuthBusy(false);
+    }
   }
 
   async function sendReset() {
     if (!supabase) return;
     if (!authEmail) { setAuthMessage(t("تکایە ئیمەیڵەکەت بنووسە", "أدخل بريدك الإلكتروني", "Enter your email address")); return; }
     setAuthBusy(true); setAuthMessage("");
-    const { error } = await supabase.auth.resetPasswordForEmail(authEmail.trim(), { redirectTo: getAuthRedirectUrl() });
-    setAuthMessage(error ? readableAuthError(error, t) : t("لینکی گۆڕینی وشەی نهێنی بۆ ئیمەیڵەکەت نێردرا.", "تم إرسال رابط إعادة تعيين كلمة المرور إلى بريدك.", "Password reset link sent to your email."));
-    setAuthBusy(false);
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(authEmail.trim(), { redirectTo: getAuthRedirectUrl() });
+      setAuthMessage(error ? readableAuthError(error, t) : t("لینکی گۆڕینی وشەی نهێنی بۆ ئیمەیڵەکەت نێردرا.", "تم إرسال رابط إعادة تعيين كلمة المرور إلى بريدك.", "Password reset link sent to your email."));
+    } catch (err) {
+      setAuthMessage(readableAuthError(err, t));
+    } finally {
+      setAuthBusy(false);
+    }
   }
 
   async function updatePassword() {
@@ -359,10 +434,15 @@ function App() {
     if (authPassword.length < 8) { setAuthMessage(t("وشەی نهێنی دەبێت لانیکەم ٨ پیت بێت", "يجب أن تتكون كلمة المرور من 8 أحرف على الأقل", "Password must be at least 8 characters")); return; }
     if (authPassword !== authConfirmPassword) { setAuthMessage(t("وشە نهێنییەکان یەکسان نین", "كلمتا المرور غير متطابقتين", "Passwords do not match")); return; }
     setAuthBusy(true); setAuthMessage("");
-    const { error } = await supabase.auth.updateUser({ password: authPassword });
-    if (error) setAuthMessage(readableAuthError(error, t));
-    else { setAuthMode("login"); setAuthPassword(""); setAuthConfirmPassword(""); setAuthMessage(t("وشەی نهێنی نوێ کرایەوە.", "تم تحديث كلمة المرور.", "Password updated. You can sign in now.")); }
-    setAuthBusy(false);
+    try {
+      const { error } = await supabase.auth.updateUser({ password: authPassword });
+      if (error) setAuthMessage(readableAuthError(error, t));
+      else { setAuthMode("login"); setAuthPassword(""); setAuthConfirmPassword(""); setAuthMessage(t("وشەی نهێنی نوێ کرایەوە.", "تم تحديث كلمة المرور.", "Password updated. You can sign in now.")); }
+    } catch (err) {
+      setAuthMessage(readableAuthError(err, t));
+    } finally {
+      setAuthBusy(false);
+    }
   }
 
   async function signOut() { if (supabase) await supabase.auth.signOut(); setUserId(null); setProfile(null); setRole("customer"); setTab("home"); }
@@ -381,11 +461,17 @@ function App() {
     return products.filter(p => {
       if (category !== "all" && p.category !== category) return false;
       if (p.status !== "active") return false;
+
+      // Price range filter
+      if (priceRange === "under10k" && p.price >= 10000) return false;
+      if (priceRange === "10k-25k" && (p.price < 10000 || p.price > 25000)) return false;
+      if (priceRange === "above25k" && p.price <= 25000) return false;
+
       if (!term) return true;
       const searchable = [p.name, p.description, p.category, p.owner, ...Object.values(p.attributes).flatMap(value => Array.isArray(value) ? value : [value])].join(" ").toLocaleLowerCase();
       return searchable.includes(term);
     });
-  }, [products, category, search]);
+  }, [products, category, search, priceRange]);
 
   const money = (n: number) => new Intl.NumberFormat("en-US").format(n) + " د.ع";
 
@@ -396,6 +482,10 @@ function App() {
     if (missing.length) { setNotice(t(`ئەم خانانە پێویستن: ${missing.join(", ")}`, `الحقول المطلوبة: ${missing.join(", ")}`, `Required fields: ${missing.join(", ")}`)); return; }
     if (!supabase || !userId) { setNotice(t("بۆ پۆستکردن دەبێت هەژمارت هەبێت و بچیتە ژوورەوە", "يجب إنشاء حساب وتسجيل الدخول للنشر", "Create an account and sign in before publishing")); setTab("auth"); return; }
     if (!allowedPostCategories.includes(form.category as Role)) { setNotice(t("ئەم بەشە بۆ ڕۆڵی هەژمارەکەت ڕێگەپێدراو نییە", "هذا القسم غير مسموح لدور حسابك", "This category is not allowed for your account role")); return; }
+
+    // Ensure profile row exists in database to satisfy posts_user_id_fkey constraint
+    await ensureProfileExists(userId, profile?.full_name, profile?.role || role);
+
     const images = form.images.split(/[\n,]/).map(item => item.trim()).filter(Boolean).slice(0, 8);
     const payload = {
       title: form.name,
@@ -407,10 +497,13 @@ function App() {
       attributes: { ...form.attributes, vendor_name: profile?.full_name || "Merchant" },
       status: "active"
     };
-    const request = form.id ? supabase.from("posts").update(payload).eq("id", form.id).eq("user_id", userId) : supabase.from("posts").insert({ ...payload, user_id: userId });
+    const isUpdate = Boolean(form.id && !form.id.startsWith("sample-"));
+    const request = isUpdate
+      ? supabase.from("posts").update(payload).eq("id", form.id).eq("user_id", userId)
+      : supabase.from("posts").insert({ ...payload, user_id: userId });
     const { error } = await request;
     if (error) { setNotice(error.message); return; }
-    await loadData(); setTab("home"); setNotice(t(form.id ? "پۆستەکە نوێکرایەوە" : "پۆستەکە زیاد کرا", form.id ? "تم تحديث المنشور" : "تمت إضافة المنشور", form.id ? "Post updated" : "Post added")); setForm({ id: "", name: "", price: "", category: "restaurant", description: "", emoji: "📦", images: "", attributes: {} });
+    await loadData(); setTab("home"); setNotice(t(isUpdate ? "پۆستەکە نوێکرایەوە" : "پۆستەکە زیاد کرا", isUpdate ? "تم تحديث المنشور" : "تمت إضافة المنشور", isUpdate ? "Post updated" : "Post added")); setForm({ id: "", name: "", price: "", category: "restaurant", description: "", emoji: "📦", images: "", attributes: {} });
   }
 
   function editPost(product: Product) { setForm({ id: product.id, name: product.name, price: String(product.price), category: product.category, description: product.description, emoji: product.emoji, images: Array.isArray(product.attributes.images) ? (product.attributes.images as string[]).join("\n") : "", attributes: product.attributes }); setTab("post"); }
@@ -419,6 +512,7 @@ function App() {
   async function checkout() {
     if (cart.length === 0) return;
     if (supabase && userId) {
+      await ensureProfileExists(userId, profile?.full_name, profile?.role || role);
       const productsTotal = cart.reduce((sum, product) => sum + product.price, 0);
       const deliveryFee = 5000;
       const total = productsTotal + deliveryFee;
@@ -466,12 +560,8 @@ function App() {
           {showMenu ? <X /> : <Menu />}
         </button>
 
-        <div className="brand" onClick={() => { setTab("home"); setCategory("all"); }}>
-          <div className="brandmark">S</div>
-          <div>
-            <b>SHAKH <span>SUPER</span></b>
-            <small>{t("هەموو شتێک لە یەک شوێن", "كل ما تحتاجه في مكان واحد", "Everything in one place")}</small>
-          </div>
+        <div className="brand" onClick={() => { setTab("home"); setCategory("all"); }} title="SHAX DELIVERY | شاخ بۆ گەیاندن">
+          <img src="/shax-logo.svg" alt="SHAX DELIVERY - شاخ بۆ گەیاندن" className="header-logo" />
         </div>
 
         <div className="search">
@@ -604,15 +694,36 @@ function App() {
                 </div>
               </div>
 
-              <div className="chips">
-                <button className={category === "all" ? "selected" : ""} onClick={() => setCategory("all")}>
-                  {t("هەموو", "الكل", "All")}
-                </button>
-                {roles.map(r => (
-                  <button className={category === r.id ? "selected" : ""} onClick={() => setCategory(r.id)} key={r.id}>
-                    {t(r.ku, r.ar, r.en)}
+              <div className="filter-bar">
+                <div className="chips">
+                  <button className={category === "all" ? "selected" : ""} onClick={() => setCategory("all")}>
+                    {t("هەموو", "الكل", "All")}
                   </button>
-                ))}
+                  {roles.map(r => (
+                    <button className={category === r.id ? "selected" : ""} onClick={() => setCategory(r.id)} key={r.id}>
+                      {t(r.ku, r.ar, r.en)}
+                    </button>
+                  ))}
+                </div>
+
+                <div className="price-filter-chips">
+                  <span className="price-filter-label">
+                    <SlidersHorizontal size={13} />
+                    {t("بوودجە / نرخ:", "الميزانية / السعر:", "Budget:")}
+                  </span>
+                  <button className={priceRange === "all" ? "selected" : ""} onClick={() => setPriceRange("all")}>
+                    {t("هەموو نرخەکان", "كل الأسعار", "All Prices")}
+                  </button>
+                  <button className={priceRange === "under10k" ? "selected" : ""} onClick={() => setPriceRange("under10k")}>
+                    {t("کەمتر لە ١٠ هەزار", "أقل من 10k", "Under 10k")}
+                  </button>
+                  <button className={priceRange === "10k-25k" ? "selected" : ""} onClick={() => setPriceRange("10k-25k")}>
+                    {t("١٠ک - ٢٥ک", "10k - 25k", "10k - 25k")}
+                  </button>
+                  <button className={priceRange === "above25k" ? "selected" : ""} onClick={() => setPriceRange("above25k")}>
+                    {t("سەروو ٢٥ هەزار", "أكثر من 25k", "Above 25k")}
+                  </button>
+                </div>
               </div>
 
               {visible.length === 0 ? (
@@ -623,12 +734,12 @@ function App() {
                 <div className="grid">
                   {visible.map(p => (
                     <article className="card" key={p.id}>
-                      <div className="product-image">
-                        {p.emoji}
-                        <span className="badge">
-                          {p.category === "car_dealer" ? t("فرۆشتنی ئۆتۆمبێل", "سيارة للبيع", "For sale") : t("بەردەستە", "متوفر", "Available")}
-                        </span>
-                      </div>
+                      <ProductLazyImage
+                        src={getProductImageUrl(p)}
+                        alt={p.name}
+                        emoji={p.emoji && !p.emoji.startsWith("http") && !p.emoji.startsWith("/") ? p.emoji : "📦"}
+                        badgeText={p.category === "car_dealer" ? t("فرۆشتنی ئۆتۆمبێل", "سيارة للبيع", "For sale") : t("بەردەستە", "متوفر", "Available")}
+                      />
                       <div className="card-body">
                         <small className="vendor-name">{p.owner}</small>
                         <h3>{p.name}</h3>

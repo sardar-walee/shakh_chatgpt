@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
-import { Bike, CheckCircle2, Clock, MapPin, Package, RefreshCw, ShoppingBag, Truck, AlertTriangle, Radio } from "lucide-react";
-import { supabase } from "../lib/supabase";
+import { Bike, CheckCircle2, Clock, MapPin, Package, RefreshCw, ShoppingBag, Truck, AlertTriangle, Radio, ClipboardList, ChefHat } from "lucide-react";
+import { supabase, ensureProfileExists } from "../lib/supabase";
 
 export type Order = {
   id: string;
@@ -30,8 +30,8 @@ interface OrdersViewProps {
 }
 
 const STEPS = [
-  { key: "pending", ku: "تۆمارکرا", ar: "تم الطلب", en: "Placed", icon: Package },
-  { key: "preparing", ku: "ئامادەکردن", ar: "التحضير", en: "Preparing", icon: Clock },
+  { key: "pending", ku: "تۆمارکرا", ar: "تم الطلب", en: "Placed", icon: ClipboardList },
+  { key: "preparing", ku: "ئامادەکردن", ar: "التحضير", en: "Preparing", icon: ChefHat },
   { key: "out_for_delivery", ku: "لە ڕێگادایە", ar: "التوصيل", en: "On the way", icon: Truck },
   { key: "delivered", ku: "گەیەندرا", ar: "تم التسليم", en: "Delivered", icon: CheckCircle2 }
 ];
@@ -98,11 +98,7 @@ export const OrderStatusTracker: React.FC<{
             return (
               <div key={step.key} className={stepClass}>
                 <div className="step-circle">
-                  {isCompleted ? (
-                    <CheckCircle2 size={16} />
-                  ) : (
-                    <Icon size={16} />
-                  )}
+                  <Icon size={16} />
                   {isCurrent && <span className="ring-pulse"></span>}
                 </div>
                 <span className="step-label">{t(step.ku, step.ar, step.en)}</span>
@@ -189,6 +185,7 @@ export const OrdersView: React.FC<OrdersViewProps> = ({ userId, role, t, money }
     if (!supabase || !userId) return;
     setUpdatingId(orderId);
     try {
+      await ensureProfileExists(userId, "User", role);
       const payload: Record<string, any> = { status: newStatus };
       if (assignCaptain) {
         payload.captain_id = userId;

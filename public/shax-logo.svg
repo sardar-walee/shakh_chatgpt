@@ -1,0 +1,54 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 240" width="100%" height="100%">
+  <defs>
+    <linearGradient id="mtnDark" x1="0%" y1="100%" x2="50%" y2="0%">
+      <stop offset="0%" stop-color="#0f2b48" />
+      <stop offset="100%" stop-color="#1e4976" />
+    </linearGradient>
+    <linearGradient id="orangeArrow" x1="0%" y1="100%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#ea580c" />
+      <stop offset="50%" stop-color="#f97316" />
+      <stop offset="100%" stop-color="#fb923c" />
+    </linearGradient>
+    <linearGradient id="blueArrow" x1="0%" y1="100%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#0284c7" />
+      <stop offset="100%" stop-color="#38bdf8" />
+    </linearGradient>
+    <filter id="shadow" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="3" stdDeviation="4" flood-color="#0f2b48" flood-opacity="0.12" />
+    </filter>
+  </defs>
+
+  <!-- Mountain & Swoosh Graphic Symbol -->
+  <g transform="translate(160, 0) scale(1.0)" filter="url(#shadow)">
+    <!-- Mountain Background Peak (Right Main Peak) -->
+    <path d="M 130 135 L 195 20 L 260 135 Z" fill="url(#mtnDark)" />
+    <!-- Mountain Shadow Facet -->
+    <path d="M 195 20 L 195 135 L 260 135 Z" fill="#0b1b2d" opacity="0.3" />
+
+    <!-- Mountain Foreground Peak (Left Peak) -->
+    <path d="M 70 135 L 135 50 L 200 135 Z" fill="url(#mtnDark)" />
+    <path d="M 135 50 L 135 135 L 200 135 Z" fill="#0b1b2d" opacity="0.35" />
+
+    <!-- Snow Cap Accents -->
+    <path d="M 183 44 L 195 20 L 207 44 L 201 47 L 195 36 L 189 47 Z" fill="#ffffff" />
+    <path d="M 125 64 L 135 50 L 145 64 L 140 67 L 135 58 L 130 67 Z" fill="#ffffff" />
+
+    <!-- Inner Blue Swoosh Arrow -->
+    <path d="M 50 120 C 85 132, 135 110, 180 50 L 196 64 L 208 20 L 165 28 L 180 40 C 140 92, 95 112, 55 102 Z" fill="url(#blueArrow)" />
+
+    <!-- Outer Orange Swoosh Arrow -->
+    <path d="M 25 132 C 60 152, 135 142, 205 77 C 230 55, 248 30, 260 0 L 268 26 L 250 2 L 242 35 C 228 58, 205 82, 168 108 C 120 140, 60 145, 30 122 Z" fill="url(#orangeArrow)" />
+    <polygon points="260,0 272,12 254,38 244,26" fill="url(#orangeArrow)" />
+  </g>
+
+  <!-- Typography -->
+  <!-- Kurdish Title: شاخ بۆ گەیاندن -->
+  <text x="300" y="182" text-anchor="middle" font-family="'Noto Sans Arabic', 'Segoe UI', sans-serif" font-size="34" font-weight="800">
+    <tspan fill="#f97316">شاخ بۆ گەیاندن</tspan>
+  </text>
+
+  <!-- English Title: SHAX DELIVERY -->
+  <text x="300" y="222" text-anchor="middle" font-family="'Inter', 'Segoe UI', system-ui, sans-serif" font-size="28" font-weight="900" fill="#0f2b48" letter-spacing="5">
+    SHAX DELIVERY
+  </text>
+</svg>
